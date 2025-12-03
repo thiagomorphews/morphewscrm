@@ -10,16 +10,23 @@ import {
   Loader2,
   ExternalLink,
   Clock,
-  Video
+  Video,
+  Linkedin,
+  Globe,
+  FileText,
+  MapPin,
+  Package
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { InlineEdit } from '@/components/InlineEdit';
 import { InlineSelect } from '@/components/InlineSelect';
+import { MultiSelect } from '@/components/MultiSelect';
 import { DeleteLeadDialog } from '@/components/DeleteLeadDialog';
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
 import { useUsers } from '@/hooks/useUsers';
+import { useLeadSources, useLeadProducts } from '@/hooks/useConfigOptions';
 import { FUNNEL_STAGES, FunnelStage } from '@/types/lead';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,12 +45,24 @@ export default function LeadDetail() {
   
   const { data: lead, isLoading, error } = useLead(id);
   const { data: users = [] } = useUsers();
+  const { data: leadSources = [] } = useLeadSources();
+  const { data: leadProducts = [] } = useLeadProducts();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
   
   const userOptions = users.map((user) => ({
     value: `${user.first_name} ${user.last_name}`,
     label: `${user.first_name} ${user.last_name}`,
+  }));
+
+  const sourceOptions = leadSources.map((source) => ({
+    value: source.name,
+    label: source.name,
+  }));
+
+  const productOptions = leadProducts.map((product) => ({
+    value: product.name,
+    label: product.name,
   }));
 
   const handleUpdate = (field: string, value: string | number | null) => {
@@ -251,24 +270,133 @@ export default function LeadDetail() {
                     />
                   </div>
                 </div>
+
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <a
+                    href={lead.linkedin || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 transition-colors"
+                  >
+                    <Linkedin className="w-5 h-5 text-blue-600" />
+                  </a>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">LinkedIn</p>
+                    <div className="flex items-center gap-2">
+                      <InlineEdit
+                        value={lead.linkedin}
+                        onSave={(value) => handleUpdate('linkedin', value || null)}
+                        type="url"
+                        displayClassName="font-medium text-blue-600"
+                        placeholder="https://linkedin.com/in/usuario"
+                      />
+                      {lead.linkedin && (
+                        <a
+                          href={lead.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="p-2 rounded-lg bg-orange-500/10">
+                    <Globe className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Site</p>
+                    <div className="flex items-center gap-2">
+                      <InlineEdit
+                        value={lead.site}
+                        onSave={(value) => handleUpdate('site', value || null)}
+                        type="url"
+                        displayClassName="font-medium text-orange-500"
+                        placeholder="https://..."
+                      />
+                      {lead.site && (
+                        <a
+                          href={lead.site}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-orange-500 hover:text-orange-600"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="p-2 rounded-lg bg-slate-500/10">
+                    <FileText className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">CPF/CNPJ</p>
+                    <InlineEdit
+                      value={lead.cpf_cnpj}
+                      onSave={(value) => handleUpdate('cpf_cnpj', value || null)}
+                      displayClassName="font-medium"
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+                  <div className="p-2 rounded-lg bg-teal-500/10">
+                    <MapPin className="w-5 h-5 text-teal-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Origem do Lead</p>
+                    <InlineSelect
+                      value={lead.lead_source}
+                      options={sourceOptions}
+                      onSave={(value) => handleUpdate('lead_source', value)}
+                      displayClassName="font-medium"
+                      placeholder="Selecione a origem"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Products & Notes */}
             <div className="bg-card rounded-xl p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Produtos & Observações</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary" />
+                Produtos & Observações
+              </h2>
               
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Produtos de interesse
+                    Produtos Negociados
+                  </label>
+                  <div className="mt-1">
+                    <MultiSelect
+                      options={productOptions}
+                      selected={lead.products || []}
+                      onChange={(selected) => handleUpdate('products', selected as any)}
+                      placeholder="Selecione os produtos"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Notas sobre Interesse
                   </label>
                   <div className="mt-1 p-3 rounded-lg bg-muted/50">
                     <InlineEdit
                       value={lead.desired_products}
                       onSave={(value) => handleUpdate('desired_products', value || null)}
                       type="textarea"
-                      placeholder="Clique para adicionar produtos de interesse"
+                      placeholder="Anotações sobre interesse do lead..."
                     />
                   </div>
                 </div>
@@ -282,7 +410,7 @@ export default function LeadDetail() {
                       value={lead.observations}
                       onSave={(value) => handleUpdate('observations', value || null)}
                       type="textarea"
-                      placeholder="Clique para adicionar observações"
+                      placeholder="Anotações importantes sobre o lead..."
                     />
                   </div>
                 </div>
@@ -296,7 +424,7 @@ export default function LeadDetail() {
                     <InlineEdit
                       value={lead.whatsapp_group}
                       onSave={(value) => handleUpdate('whatsapp_group', value || null)}
-                      placeholder="Clique para adicionar nome do grupo"
+                      placeholder="Ex: Grupo João - Negociação"
                     />
                   </div>
                 </div>
