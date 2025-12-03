@@ -8,7 +8,6 @@ import {
   MessageSquare,
   DollarSign,
   User,
-  Edit,
   Loader2,
   ExternalLink,
   Clock
@@ -16,10 +15,18 @@ import {
 import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
-import { useLead } from '@/hooks/useLeads';
-import { FUNNEL_STAGES } from '@/types/lead';
+import { InlineEdit } from '@/components/InlineEdit';
+import { useLead, useUpdateLead } from '@/hooks/useLeads';
+import { FUNNEL_STAGES, FunnelStage } from '@/types/lead';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 export default function LeadDetail() {
@@ -27,6 +34,12 @@ export default function LeadDetail() {
   const navigate = useNavigate();
   
   const { data: lead, isLoading, error } = useLead(id);
+  const updateLead = useUpdateLead();
+
+  const handleUpdate = (field: string, value: string | number | null) => {
+    if (!id) return;
+    updateLead.mutate({ id, [field]: value });
+  };
 
   if (isLoading) {
     return (
@@ -61,7 +74,7 @@ export default function LeadDetail() {
   };
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return 'Não definido';
+    if (!value) return 'Clique para definir';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -78,15 +91,25 @@ export default function LeadDetail() {
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-foreground">{lead.name}</h1>
-              <StarRating rating={lead.stars as 1 | 2 | 3 | 4 | 5} size="lg" />
+              <InlineEdit
+                value={lead.name}
+                onSave={(value) => handleUpdate('name', value)}
+                displayClassName="text-3xl font-bold text-foreground"
+              />
+              <StarRating 
+                rating={lead.stars as 1 | 2 | 3 | 4 | 5} 
+                size="lg" 
+                interactive
+                onChange={(stars) => handleUpdate('stars', stars)}
+              />
             </div>
-            <p className="text-muted-foreground">{lead.specialty}</p>
+            <InlineEdit
+              value={lead.specialty}
+              onSave={(value) => handleUpdate('specialty', value)}
+              displayClassName="text-muted-foreground"
+              placeholder="Clique para adicionar especialidade"
+            />
           </div>
-          <Button variant="outline" className="gap-2" onClick={() => navigate(`/leads/${id}/edit`)}>
-            <Edit className="w-4 h-4" />
-            Editar
-          </Button>
         </div>
 
         {/* Main Content */}
@@ -103,13 +126,31 @@ export default function LeadDetail() {
                   <p className={cn('text-sm font-medium opacity-80', stageInfo.textColor)}>
                     Etapa atual
                   </p>
-                  <p className={cn('text-2xl font-bold', stageInfo.textColor)}>
-                    {stageInfo.label}
-                  </p>
+                  <Select
+                    value={lead.stage}
+                    onValueChange={(value) => handleUpdate('stage', value as FunnelStage)}
+                  >
+                    <SelectTrigger className="w-auto border-0 bg-transparent p-0 h-auto text-2xl font-bold hover:bg-white/10 rounded">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(FUNNEL_STAGES).map(([key, value]) => (
+                        <SelectItem key={key} value={key}>
+                          {value.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Badge className="bg-white/20 text-inherit border-0 text-lg px-4 py-2">
-                  {formatFollowers(lead.followers)} seguidores
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <InlineEdit
+                    value={lead.followers}
+                    onSave={(value) => handleUpdate('followers', value ? parseInt(value) : null)}
+                    type="number"
+                    formatDisplay={(v) => `${formatFollowers(v as number | null)} seguidores`}
+                    displayClassName="bg-white/20 text-inherit border-0 text-lg px-4 py-2 rounded-full"
+                  />
+                </div>
               </div>
             </div>
 
@@ -117,59 +158,64 @@ export default function LeadDetail() {
             <div className="bg-card rounded-xl p-6 shadow-card">
               <h2 className="text-lg font-semibold text-foreground mb-4">Informações de Contato</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                   <div className="p-2 rounded-lg bg-pink-500/10">
                     <Instagram className="w-5 h-5 text-pink-500" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Instagram</p>
-                    <a 
-                      href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-pink-500 hover:underline"
-                    >
-                      {lead.instagram}
-                    </a>
+                    <InlineEdit
+                      value={lead.instagram}
+                      onSave={(value) => handleUpdate('instagram', value)}
+                      displayClassName="font-medium text-pink-500"
+                      placeholder="@usuario"
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                   <div className="p-2 rounded-lg bg-green-500/10">
                     <WhatsAppButton phone={lead.whatsapp} variant="icon" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">WhatsApp</p>
-                    <p className="font-medium">{lead.whatsapp}</p>
+                    <InlineEdit
+                      value={lead.whatsapp}
+                      onSave={(value) => handleUpdate('whatsapp', value)}
+                      displayClassName="font-medium"
+                      placeholder="5511999999999"
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                   <div className="p-2 rounded-lg bg-primary/10">
                     <Mail className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">E-mail</p>
-                    {lead.email ? (
-                      <a 
-                        href={`mailto:${lead.email}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {lead.email}
-                      </a>
-                    ) : (
-                      <p className="font-medium text-muted-foreground">Não informado</p>
-                    )}
+                    <InlineEdit
+                      value={lead.email}
+                      onSave={(value) => handleUpdate('email', value || null)}
+                      type="email"
+                      displayClassName="font-medium text-primary"
+                      placeholder="email@exemplo.com"
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                   <div className="p-2 rounded-lg bg-accent/10">
                     <User className="w-5 h-5 text-accent" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Responsável</p>
-                    <p className="font-medium">{lead.assigned_to}</p>
+                    <InlineEdit
+                      value={lead.assigned_to}
+                      onSave={(value) => handleUpdate('assigned_to', value)}
+                      displayClassName="font-medium"
+                      placeholder="Nome do responsável"
+                    />
                   </div>
                 </div>
               </div>
@@ -184,31 +230,43 @@ export default function LeadDetail() {
                   <label className="text-sm font-medium text-muted-foreground">
                     Produtos de interesse
                   </label>
-                  <p className="mt-1 p-3 rounded-lg bg-muted/50 text-foreground">
-                    {lead.desired_products || 'Nenhum produto especificado ainda'}
-                  </p>
+                  <div className="mt-1 p-3 rounded-lg bg-muted/50">
+                    <InlineEdit
+                      value={lead.desired_products}
+                      onSave={(value) => handleUpdate('desired_products', value || null)}
+                      type="textarea"
+                      placeholder="Clique para adicionar produtos de interesse"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
                     Observações
                   </label>
-                  <p className="mt-1 p-3 rounded-lg bg-muted/50 text-foreground">
-                    {lead.observations || 'Nenhuma observação'}
-                  </p>
+                  <div className="mt-1 p-3 rounded-lg bg-muted/50">
+                    <InlineEdit
+                      value={lead.observations}
+                      onSave={(value) => handleUpdate('observations', value || null)}
+                      type="textarea"
+                      placeholder="Clique para adicionar observações"
+                    />
+                  </div>
                 </div>
 
-                {lead.whatsapp_group && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Grupo de WhatsApp
-                    </label>
-                    <p className="mt-1 p-3 rounded-lg bg-green-500/10 text-foreground flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-green-500" />
-                      {lead.whatsapp_group}
-                    </p>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Grupo de WhatsApp
+                  </label>
+                  <div className="mt-1 p-3 rounded-lg bg-green-500/10 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-green-500" />
+                    <InlineEdit
+                      value={lead.whatsapp_group}
+                      onSave={(value) => handleUpdate('whatsapp_group', value || null)}
+                      placeholder="Clique para adicionar nome do grupo"
+                    />
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -225,16 +283,24 @@ export default function LeadDetail() {
               <div className="space-y-4">
                 <div className="p-4 rounded-lg bg-muted/50">
                   <p className="text-sm text-muted-foreground">Valor Negociado</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(lead.negotiated_value)}
-                  </p>
+                  <InlineEdit
+                    value={lead.negotiated_value}
+                    onSave={(value) => handleUpdate('negotiated_value', value ? parseFloat(value) : null)}
+                    type="number"
+                    formatDisplay={formatCurrency}
+                    displayClassName="text-2xl font-bold text-foreground"
+                  />
                 </div>
 
                 <div className="p-4 rounded-lg bg-funnel-success/20">
                   <p className="text-sm text-funnel-success-foreground">Valor Pago</p>
-                  <p className="text-2xl font-bold text-funnel-success-foreground">
-                    {formatCurrency(lead.paid_value)}
-                  </p>
+                  <InlineEdit
+                    value={lead.paid_value}
+                    onSave={(value) => handleUpdate('paid_value', value ? parseFloat(value) : null)}
+                    type="number"
+                    formatDisplay={formatCurrency}
+                    displayClassName="text-2xl font-bold text-funnel-success-foreground"
+                  />
                 </div>
               </div>
             </div>
@@ -258,46 +324,64 @@ export default function LeadDetail() {
             </div>
 
             {/* Meeting Info */}
-            {(lead.meeting_date || lead.meeting_link) && (
-              <div className="bg-card rounded-xl p-6 shadow-card">
-                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  Reunião Agendada
-                </h2>
-                
-                <div className="space-y-3">
-                  {lead.meeting_date && (
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Data e Hora</p>
-                        <p className="font-medium">
-                          {new Date(lead.meeting_date).toLocaleDateString('pt-BR')}
-                          {lead.meeting_time && ` às ${lead.meeting_time.slice(0, 5)}`}
-                        </p>
-                      </div>
+            <div className="bg-card rounded-xl p-6 shadow-card">
+              <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                Reunião
+              </h2>
+              
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Clock className="w-4 h-4 text-muted-foreground mt-1" />
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Data</p>
+                      <InlineEdit
+                        value={lead.meeting_date}
+                        onSave={(value) => handleUpdate('meeting_date', value || null)}
+                        type="date"
+                        formatDisplay={(v) => v ? new Date(v as string).toLocaleDateString('pt-BR') : 'Clique para definir'}
+                        displayClassName="font-medium"
+                      />
                     </div>
-                  )}
-                  
+                    <div>
+                      <p className="text-sm text-muted-foreground">Hora</p>
+                      <InlineEdit
+                        value={lead.meeting_time}
+                        onSave={(value) => handleUpdate('meeting_time', value || null)}
+                        type="time"
+                        formatDisplay={(v) => v ? (v as string).slice(0, 5) : 'Clique para definir'}
+                        displayClassName="font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ExternalLink className="w-4 h-4 text-primary" />
+                    <p className="text-sm text-muted-foreground">Link da Reunião</p>
+                  </div>
+                  <InlineEdit
+                    value={lead.meeting_link}
+                    onSave={(value) => handleUpdate('meeting_link', value || null)}
+                    type="url"
+                    placeholder="Cole o link aqui"
+                    displayClassName="font-medium text-primary break-all"
+                  />
                   {lead.meeting_link && (
                     <a
                       href={lead.meeting_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+                      className="inline-flex items-center gap-1 mt-2 text-sm text-primary hover:underline"
                     >
-                      <ExternalLink className="w-4 h-4 text-primary" />
-                      <div className="flex-1">
-                        <p className="text-sm text-muted-foreground">Link da Reunião</p>
-                        <p className="font-medium text-primary truncate">
-                          {lead.meeting_link}
-                        </p>
-                      </div>
+                      Abrir link <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
