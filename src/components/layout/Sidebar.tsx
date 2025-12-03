@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
@@ -6,22 +6,33 @@ import {
   Settings, 
   Instagram,
   Menu,
-  X
+  X,
+  UserPlus,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: Users, label: 'Todos os Leads', path: '/leads' },
-  { icon: Plus, label: 'Novo Lead', path: '/leads/new' },
-  { icon: Instagram, label: 'Instagram DMs', path: '/instagram', badge: 'Em breve' },
-  { icon: Settings, label: 'Configurações', path: '/settings' },
-];
+import { useAuth } from '@/hooks/useAuth';
 
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, profile, isAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: Users, label: 'Todos os Leads', path: '/leads' },
+    { icon: Plus, label: 'Novo Lead', path: '/leads/new' },
+    ...(isAdmin ? [{ icon: UserPlus, label: 'Cadastrar Usuário', path: '/cadastro' }] : []),
+    { icon: Instagram, label: 'Instagram DMs', path: '/instagram', badge: 'Em breve' },
+    { icon: Settings, label: 'Configurações', path: '/settings' },
+  ];
 
   return (
     <>
@@ -57,6 +68,25 @@ export function Sidebar() {
             <p className="text-sm text-muted-foreground mt-1">Gestão de leads intuitiva</p>
           </div>
 
+          {/* User Info */}
+          {user && (
+            <div className="p-4 border-b border-sidebar-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
+                  {profile?.first_name?.[0] || user.email?.[0]?.toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground truncate">
+                    {profile ? `${profile.first_name} ${profile.last_name}` : user.email}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {isAdmin ? 'Administrador' : 'Usuário'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
             {navItems.map((item) => (
@@ -83,13 +113,15 @@ export function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="p-4 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10">
-              <p className="text-sm font-medium text-foreground">Precisa de ajuda?</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Entre em contato com o suporte
-              </p>
-            </div>
+          <div className="p-4 border-t border-sidebar-border space-y-3">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={handleSignOut}
+            >
+              <LogOut className="w-5 h-5" />
+              Sair
+            </Button>
           </div>
         </div>
       </aside>
