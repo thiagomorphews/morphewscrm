@@ -3,8 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Calendar, Instagram, Bell, Users } from 'lucide-react';
-import { GoogleCalendarConnect } from '@/components/GoogleCalendarConnect';
+import { Instagram, Bell, Users } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -19,27 +18,6 @@ export default function Settings() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Google Calendar Integration */}
-          <div className="bg-card rounded-xl p-6 shadow-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-blue-500/10">
-                <Calendar className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Google Calendar</h2>
-                <p className="text-sm text-muted-foreground">Sincronize suas calls e reuniões</p>
-              </div>
-            </div>
-            
-            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-500/10 to-primary/10 border border-blue-500/20 mb-4">
-              <p className="text-sm text-muted-foreground">
-                Conecte seu Google Calendar para visualizar e criar eventos vinculados aos seus leads diretamente do CRM.
-              </p>
-            </div>
-
-            <GoogleCalendarConnect />
-          </div>
-
           {/* Instagram Integration */}
           <div className="bg-card rounded-xl p-6 shadow-card">
             <div className="flex items-center gap-3 mb-4">

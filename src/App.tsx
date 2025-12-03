@@ -14,6 +14,7 @@ import Cadastro from "./pages/Cadastro";
 import LeadsList from "./pages/LeadsList";
 import LeadDetail from "./pages/LeadDetail";
 import NewLead from "./pages/NewLead";
+import EditLead from "./pages/EditLead";
 import Settings from "./pages/Settings";
 import InstagramDMs from "./pages/InstagramDMs";
 import NotFound from "./pages/NotFound";
@@ -53,6 +54,11 @@ const App = () => (
             <Route path="/leads/:id" element={
               <ProtectedRoute>
                 <LeadDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/leads/:id/edit" element={
+              <ProtectedRoute>
+                <EditLead />
               </ProtectedRoute>
             } />
             <Route path="/cadastro" element={
