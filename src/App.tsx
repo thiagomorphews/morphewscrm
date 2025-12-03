@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ForcePasswordChange from "./pages/ForcePasswordChange";
 import Setup from "./pages/Setup";
 import Cadastro from "./pages/Cadastro";
 import LeadsList from "./pages/LeadsList";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/force-password-change" element={<ForcePasswordChange />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/planos" element={<Planos />} />
             <Route path="/auth/error" element={<AuthError />} />

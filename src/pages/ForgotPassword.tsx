@@ -43,17 +43,19 @@ export default function ForgotPassword() {
             </div>
             
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              E-mail enviado!
+              Senha provisória enviada!
             </h1>
-            <p className="text-muted-foreground mb-6">
-              Enviamos um link para <strong>{email}</strong> para você redefinir sua senha.
-              Verifique sua caixa de entrada e spam.
+            <p className="text-muted-foreground mb-4">
+              Enviamos uma <strong>senha provisória</strong> para <strong>{email}</strong>.
+            </p>
+            <p className="text-muted-foreground mb-6 text-sm">
+              Use essa senha para fazer login. Você será solicitado a criar uma nova senha segura.
             </p>
 
             <Link to="/login">
-              <Button variant="outline" className="gap-2">
+              <Button className="gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                Voltar para o login
+                Ir para o login
               </Button>
             </Link>
           </div>
@@ -75,7 +77,7 @@ export default function ForgotPassword() {
               Esqueceu a senha?
             </h1>
             <p className="text-muted-foreground mt-2">
-              Digite seu e-mail e enviaremos um link para redefinir sua senha.
+              Digite seu e-mail e enviaremos uma senha provisória para você fazer login.
             </p>
           </div>
 
@@ -99,12 +101,8 @@ export default function ForgotPassword() {
               className="w-full gap-2"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Mail className="w-4 h-4" />
-              )}
-              Enviar link de recuperação
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Enviar senha provisória
             </Button>
 
             <Link to="/login">
