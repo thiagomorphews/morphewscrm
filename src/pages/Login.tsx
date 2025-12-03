@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import logoMorphews from '@/assets/logo-morphews.png';
 import { loginSchema } from '@/lib/validations';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,18 +20,39 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  // If user is already logged in, redirect
+  // If user is already logged in, check for temp password then redirect
   useEffect(() => {
-    if (user) {
-      const redirect = searchParams.get('redirect');
-      const plan = searchParams.get('plan');
-      if (redirect) {
-        const url = plan ? `${redirect}?plan=${plan}` : redirect;
-        navigate(url, { replace: true });
-      } else {
-        navigate('/', { replace: true });
+    const checkAndRedirect = async () => {
+      if (user) {
+        // Check if user has a pending temp password reset
+        const { data: tempReset } = await supabase
+          .from('temp_password_resets')
+          .select('id')
+          .eq('email', user.email?.toLowerCase() || '')
+          .is('used_at', null)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (tempReset) {
+          // User needs to change password
+          navigate('/force-password-change', { replace: true });
+          return;
+        }
+
+        const redirect = searchParams.get('redirect');
+        const plan = searchParams.get('plan');
+        if (redirect) {
+          const url = plan ? `${redirect}?plan=${plan}` : redirect;
+          navigate(url, { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       }
-    }
+    };
+    
+    checkAndRedirect();
   }, [user, navigate, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
