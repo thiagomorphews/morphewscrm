@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import logoMorphews from '@/assets/logo-morphews.png';
 
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,10 +63,8 @@ export function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              LeadFlow CRM
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Gestão de leads intuitiva</p>
+            <img src={logoMorphews} alt="Morphews CRM" className="h-8 w-auto" />
+            <p className="text-sm text-muted-foreground mt-2">Gestão de leads intuitiva</p>
           </div>
 
           {/* User Info */}
