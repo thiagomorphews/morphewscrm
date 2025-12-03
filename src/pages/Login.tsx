@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import logoMorphews from '@/assets/logo-morphews.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function Login() {
 
     toast({
       title: 'Login realizado com sucesso!',
-      description: 'Bem-vindo ao LeadFlow CRM',
+      description: 'Bem-vindo ao Morphews CRM',
     });
     
     navigate('/');
@@ -47,10 +48,8 @@ export default function Login() {
         <div className="bg-card rounded-2xl shadow-card p-8 animate-fade-in">
           {/* Logo */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              LeadFlow CRM
-            </h1>
-            <p className="text-muted-foreground mt-2">
+            <img src={logoMorphews} alt="Morphews CRM" className="h-10 w-auto mx-auto" />
+            <p className="text-muted-foreground mt-4">
               Entre na sua conta para continuar
             </p>
           </div>
