@@ -322,6 +322,53 @@ export type Database = {
           },
         ]
       }
+      onboarding_data: {
+        Row: {
+          business_description: string | null
+          cnpj: string | null
+          company_site: string | null
+          completed_at: string | null
+          created_at: string
+          crm_usage_intent: string | null
+          id: string
+          organization_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_description?: string | null
+          cnpj?: string | null
+          company_site?: string | null
+          completed_at?: string | null
+          created_at?: string
+          crm_usage_intent?: string | null
+          id?: string
+          organization_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_description?: string | null
+          cnpj?: string | null
+          company_site?: string | null
+          completed_at?: string | null
+          created_at?: string
+          crm_usage_intent?: string | null
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_data_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -359,6 +406,9 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          owner_email: string | null
+          owner_name: string | null
+          phone: string | null
           slug: string
           updated_at: string
         }
@@ -366,6 +416,9 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          owner_email?: string | null
+          owner_name?: string | null
+          phone?: string | null
           slug: string
           updated_at?: string
         }
@@ -373,6 +426,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          owner_email?: string | null
+          owner_name?: string | null
+          phone?: string | null
           slug?: string
           updated_at?: string
         }

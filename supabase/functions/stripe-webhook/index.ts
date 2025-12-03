@@ -133,6 +133,9 @@ serve(async (req) => {
             .insert({
               name: orgName,
               slug: orgSlug,
+              owner_name: customerName || null,
+              owner_email: customerEmail,
+              phone: customerWhatsapp || null,
             })
             .select()
             .single();

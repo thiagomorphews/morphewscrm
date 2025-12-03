@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Building2, Users, CreditCard, Loader2, TrendingUp, Crown, Plus, UserPlus } from "lucide-react";
+import { Building2, Users, CreditCard, Loader2, TrendingUp, Crown, Plus, UserPlus, Mail, Phone, Globe, FileText, Eye } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -24,6 +25,9 @@ interface Organization {
   name: string;
   slug: string;
   created_at: string;
+  owner_name: string | null;
+  owner_email: string | null;
+  phone: string | null;
 }
 
 interface Subscription {
@@ -62,12 +66,33 @@ interface Profile {
   organization_id: string | null;
 }
 
+interface InterestedLead {
+  id: string;
+  name: string;
+  email: string | null;
+  whatsapp: string;
+  plan_name: string | null;
+  status: string;
+  created_at: string;
+}
+
+interface OnboardingData {
+  id: string;
+  organization_id: string;
+  cnpj: string | null;
+  company_site: string | null;
+  crm_usage_intent: string | null;
+  business_description: string | null;
+  completed_at: string | null;
+}
+
 export default function SuperAdmin() {
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [selectedOrgForUser, setSelectedOrgForUser] = useState<string | null>(null);
+  const [selectedOrgDetails, setSelectedOrgDetails] = useState<string | null>(null);
   const [newOrg, setNewOrg] = useState({ name: "", planId: "" });
 
   // Only allow master admin
@@ -142,6 +167,33 @@ export default function SuperAdmin() {
     enabled: user?.email === MASTER_ADMIN_EMAIL,
   });
 
+  const { data: interestedLeads } = useQuery({
+    queryKey: ["super-admin-interested-leads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("interested_leads")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as InterestedLead[];
+    },
+    enabled: user?.email === MASTER_ADMIN_EMAIL,
+  });
+
+  const { data: onboardingDataList } = useQuery({
+    queryKey: ["super-admin-onboarding"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("onboarding_data")
+        .select("*");
+
+      if (error) throw error;
+      return data as OnboardingData[];
+    },
+    enabled: user?.email === MASTER_ADMIN_EMAIL,
+  });
+
   const createOrgMutation = useMutation({
     mutationFn: async ({ name, planId }: { name: string; planId: string }) => {
       const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -163,7 +215,7 @@ export default function SuperAdmin() {
           plan_id: planId,
           status: "active",
           current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+          current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         });
 
       if (subError) throw subError;
@@ -188,7 +240,6 @@ export default function SuperAdmin() {
 
   const addUserToOrgMutation = useMutation({
     mutationFn: async ({ orgId, userId }: { orgId: string; userId: string }) => {
-      // Add user as member of organization
       const { error: memberError } = await supabase
         .from("organization_members")
         .insert({
@@ -199,7 +250,6 @@ export default function SuperAdmin() {
 
       if (memberError) throw memberError;
 
-      // Update profile with organization_id
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ organization_id: orgId })
@@ -232,6 +282,10 @@ export default function SuperAdmin() {
     return members?.filter((m) => m.organization_id === orgId).length || 0;
   };
 
+  const getOnboardingForOrg = (orgId: string) => {
+    return onboardingDataList?.find((o) => o.organization_id === orgId);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -242,6 +296,17 @@ export default function SuperAdmin() {
         return <Badge variant="destructive">Pagamento Pendente</Badge>;
       case "canceled":
         return <Badge variant="outline">Cancelado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getInterestedStatusBadge = (status: string) => {
+    switch (status) {
+      case "converted":
+        return <Badge className="bg-green-500">Convertido</Badge>;
+      case "checkout_started":
+        return <Badge className="bg-yellow-500">Em Checkout</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -274,6 +339,7 @@ export default function SuperAdmin() {
   }
 
   const influencerPlan = plans?.find(p => p.name === "Influencer");
+  const usersWithoutOrg = profiles?.filter((p) => !p.organization_id);
 
   return (
     <Layout>
@@ -420,162 +486,324 @@ export default function SuperAdmin() {
           </Card>
         </div>
 
-        {/* All Plans */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Planos Disponíveis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
-              {plans?.map((plan) => (
-                <div
-                  key={plan.id}
-                  className={`p-4 rounded-lg border ${
-                    plan.is_active ? "bg-card" : "bg-muted/50 border-dashed"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold">{plan.name}</span>
-                    {!plan.is_active && (
-                      <Badge variant="outline" className="text-xs">
-                        Oculto
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-2xl font-bold text-primary">
-                    {formatPrice(plan.price_cents)}
-                    <span className="text-sm text-muted-foreground">/mês</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {plan.max_leads ? `${plan.max_leads} leads` : "Leads ilimitados"} •{" "}
-                    {plan.max_users} usuários
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="organizations" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="organizations">Organizações</TabsTrigger>
+            <TabsTrigger value="interested">Quiz Interessados ({interestedLeads?.length || 0})</TabsTrigger>
+            <TabsTrigger value="plans">Planos</TabsTrigger>
+            <TabsTrigger value="users">Usuários sem Org</TabsTrigger>
+          </TabsList>
 
-        {/* Organizations Table */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Todas as Organizações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {organizations?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhuma organização cadastrada ainda.</p>
-                <p className="text-sm mt-2">Clique em "Nova Organização" para criar uma.</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Organização</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Plano</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Usuários</TableHead>
-                    <TableHead>Criado em</TableHead>
-                    <TableHead>Vence em</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {organizations?.map((org) => {
-                    const subscription = getSubscriptionForOrg(org.id);
-                    const memberCount = getMemberCountForOrg(org.id);
-
-                    return (
-                      <TableRow key={org.id}>
-                        <TableCell className="font-medium">{org.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{org.slug}</TableCell>
-                        <TableCell>
-                          <Badge variant={subscription?.subscription_plans?.price_cents === 0 ? "secondary" : "outline"}>
-                            {subscription?.subscription_plans?.name || "Sem plano"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {subscription ? getStatusBadge(subscription.status) : (
-                            <Badge variant="outline">-</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{memberCount}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(org.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {subscription?.current_period_end
-                            ? format(new Date(subscription.current_period_end), "dd/MM/yyyy", { locale: ptBR })
-                            : "-"}
-                        </TableCell>
+          <TabsContent value="organizations">
+            <Card>
+              <CardHeader>
+                <CardTitle>Todas as Organizações</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {organizations?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma organização cadastrada ainda.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Organização</TableHead>
+                        <TableHead>Dono</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Plano</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Usuários</TableHead>
+                        <TableHead>Criado em</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {organizations?.map((org) => {
+                        const subscription = getSubscriptionForOrg(org.id);
+                        const memberCount = getMemberCountForOrg(org.id);
+                        const onboarding = getOnboardingForOrg(org.id);
 
-        {/* Users without Organization */}
-        {profiles && profiles.filter(p => !p.organization_id).length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                Usuários sem Organização
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>Adicionar à Organização</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profiles.filter(p => !p.organization_id).map((profile) => (
-                    <TableRow key={profile.id}>
-                      <TableCell className="font-medium">
-                        {profile.first_name} {profile.last_name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs">
-                        {profile.user_id}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            onValueChange={(orgId) => {
-                              setSelectedOrgForUser(profile.user_id);
-                              addUserToOrgMutation.mutate({ orgId, userId: profile.user_id });
-                            }}
-                          >
-                            <SelectTrigger className="w-[200px]">
-                              <SelectValue placeholder="Selecionar organização" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {organizations?.map((org) => (
-                                <SelectItem key={org.id} value={org.id}>
-                                  {org.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {addUserToOrgMutation.isPending && selectedOrgForUser === profile.user_id && (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        return (
+                          <TableRow key={org.id}>
+                            <TableCell className="font-medium">
+                              {org.name}
+                              <div className="text-xs text-muted-foreground">{org.slug}</div>
+                            </TableCell>
+                            <TableCell>
+                              {org.owner_name || "-"}
+                              {org.owner_email && (
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {org.owner_email}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {org.phone ? (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Phone className="h-3 w-3" />
+                                  {org.phone}
+                                </div>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={subscription?.subscription_plans?.price_cents === 0 ? "secondary" : "outline"}>
+                                {subscription?.subscription_plans?.name || "Sem plano"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {subscription ? getStatusBadge(subscription.status) : "-"}
+                            </TableCell>
+                            <TableCell>{memberCount}</TableCell>
+                            <TableCell>
+                              {format(new Date(org.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                            </TableCell>
+                            <TableCell>
+                              <Dialog open={selectedOrgDetails === org.id} onOpenChange={(open) => setSelectedOrgDetails(open ? org.id : null)}>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle>Detalhes: {org.name}</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <Label className="text-muted-foreground">Nome do Dono</Label>
+                                        <p className="font-medium">{org.owner_name || "-"}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-muted-foreground">Email</Label>
+                                        <p className="font-medium">{org.owner_email || "-"}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-muted-foreground">Telefone</Label>
+                                        <p className="font-medium">{org.phone || "-"}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-muted-foreground">Plano</Label>
+                                        <p className="font-medium">{subscription?.subscription_plans?.name || "-"}</p>
+                                      </div>
+                                    </div>
+                                    
+                                    {onboarding && (
+                                      <div className="border-t pt-4">
+                                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                          <FileText className="h-4 w-4" />
+                                          Dados do Onboarding
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                            <Label className="text-muted-foreground">CNPJ</Label>
+                                            <p className="font-medium">{onboarding.cnpj || "-"}</p>
+                                          </div>
+                                          <div>
+                                            <Label className="text-muted-foreground">Site</Label>
+                                            <p className="font-medium">
+                                              {onboarding.company_site ? (
+                                                <a href={onboarding.company_site} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                                                  <Globe className="h-3 w-3" />
+                                                  {onboarding.company_site}
+                                                </a>
+                                              ) : "-"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="mt-3">
+                                          <Label className="text-muted-foreground">Como pretende usar o CRM</Label>
+                                          <p className="font-medium text-sm mt-1">{onboarding.crm_usage_intent || "-"}</p>
+                                        </div>
+                                        <div className="mt-3">
+                                          <Label className="text-muted-foreground">Sobre o Negócio</Label>
+                                          <p className="font-medium text-sm mt-1">{onboarding.business_description || "-"}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {!onboarding && (
+                                      <div className="border-t pt-4 text-center text-muted-foreground">
+                                        <p>Onboarding ainda não foi preenchido</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="interested">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quiz Preenchidos (Interessados)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {interestedLeads?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum interessado ainda.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>WhatsApp</TableHead>
+                        <TableHead>Plano Interesse</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Data</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {interestedLeads?.map((lead) => (
+                        <TableRow key={lead.id}>
+                          <TableCell className="font-medium">{lead.name}</TableCell>
+                          <TableCell>
+                            {lead.email ? (
+                              <a href={`mailto:${lead.email}`} className="text-primary hover:underline">
+                                {lead.email}
+                              </a>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <a 
+                              href={`https://wa.me/${lead.whatsapp.replace(/\D/g, "")}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-green-600 hover:underline"
+                            >
+                              {lead.whatsapp}
+                            </a>
+                          </TableCell>
+                          <TableCell>{lead.plan_name || "-"}</TableCell>
+                          <TableCell>{getInterestedStatusBadge(lead.status)}</TableCell>
+                          <TableCell>
+                            {format(new Date(lead.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="plans">
+            <Card>
+              <CardHeader>
+                <CardTitle>Planos Disponíveis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-4 gap-4">
+                  {plans?.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={`p-4 rounded-lg border ${
+                        plan.is_active ? "bg-card" : "bg-muted/50 border-dashed"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">{plan.name}</span>
+                        {!plan.is_active && (
+                          <Badge variant="outline" className="text-xs">
+                            Oculto
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-2xl font-bold text-primary">
+                        {formatPrice(plan.price_cents)}
+                        <span className="text-sm text-muted-foreground">/mês</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {plan.max_leads ? `${plan.max_leads} leads` : "Leads ilimitados"} •{" "}
+                        {plan.max_users} usuários
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle>Usuários sem Organização</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {usersWithoutOrg?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Todos os usuários estão em organizações.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usersWithoutOrg?.map((profile) => (
+                        <TableRow key={profile.id}>
+                          <TableCell>{profile.first_name} {profile.last_name}</TableCell>
+                          <TableCell>
+                            <Dialog open={selectedOrgForUser === profile.user_id} onOpenChange={(open) => setSelectedOrgForUser(open ? profile.user_id : null)}>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-2">
+                                  <UserPlus className="h-4 w-4" />
+                                  Adicionar a Org
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Adicionar à Organização</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                  <Select
+                                    onValueChange={(orgId) => {
+                                      addUserToOrgMutation.mutate({ orgId, userId: profile.user_id });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione uma organização" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {organizations?.map((org) => (
+                                        <SelectItem key={org.id} value={org.id}>
+                                          {org.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
