@@ -3,7 +3,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Cadastro from "./pages/Cadastro";
 import LeadsList from "./pages/LeadsList";
 import LeadDetail from "./pages/LeadDetail";
 import NewLead from "./pages/NewLead";
@@ -15,21 +21,59 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/leads" element={<LeadsList />} />
-          <Route path="/leads/new" element={<NewLead />} />
-          <Route path="/leads/:id" element={<LeadDetail />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/instagram" element={<InstagramDMs />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            
+            {/* Protected routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/leads" element={
+              <ProtectedRoute>
+                <LeadsList />
+              </ProtectedRoute>
+            } />
+            <Route path="/leads/new" element={
+              <ProtectedRoute>
+                <NewLead />
+              </ProtectedRoute>
+            } />
+            <Route path="/leads/:id" element={
+              <ProtectedRoute>
+                <LeadDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/cadastro" element={
+              <ProtectedRoute requireAdmin>
+                <Cadastro />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/instagram" element={
+              <ProtectedRoute>
+                <InstagramDMs />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
