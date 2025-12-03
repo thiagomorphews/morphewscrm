@@ -110,6 +110,9 @@ export type Database = {
           followers: number | null
           id: string
           instagram: string
+          meeting_date: string | null
+          meeting_link: string | null
+          meeting_time: string | null
           name: string
           negotiated_value: number | null
           observations: string | null
@@ -130,6 +133,9 @@ export type Database = {
           followers?: number | null
           id?: string
           instagram: string
+          meeting_date?: string | null
+          meeting_link?: string | null
+          meeting_time?: string | null
           name: string
           negotiated_value?: number | null
           observations?: string | null
@@ -150,6 +156,9 @@ export type Database = {
           followers?: number | null
           id?: string
           instagram?: string
+          meeting_date?: string | null
+          meeting_link?: string | null
+          meeting_time?: string | null
           name?: string
           negotiated_value?: number | null
           observations?: string | null

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
@@ -15,11 +15,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FUNNEL_STAGES, FunnelStage } from '@/types/lead';
-import { useCreateLead } from '@/hooks/useLeads';
+import { useLead, useUpdateLead } from '@/hooks/useLeads';
 
-export default function NewLead() {
+export default function EditLead() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const createLead = useCreateLead();
+  const { data: lead, isLoading: isLoadingLead } = useLead(id);
+  const updateLead = useUpdateLead();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -34,16 +36,44 @@ export default function NewLead() {
     whatsapp_group: '',
     desired_products: '',
     negotiated_value: '',
+    paid_value: '',
     observations: '',
     meeting_date: '',
     meeting_time: '',
     meeting_link: '',
   });
 
+  useEffect(() => {
+    if (lead) {
+      setFormData({
+        name: lead.name || '',
+        specialty: lead.specialty || '',
+        instagram: lead.instagram || '',
+        followers: lead.followers?.toString() || '',
+        whatsapp: lead.whatsapp || '',
+        email: lead.email || '',
+        stage: lead.stage,
+        stars: lead.stars,
+        assigned_to: lead.assigned_to || '',
+        whatsapp_group: lead.whatsapp_group || '',
+        desired_products: lead.desired_products || '',
+        negotiated_value: lead.negotiated_value?.toString() || '',
+        paid_value: lead.paid_value?.toString() || '',
+        observations: lead.observations || '',
+        meeting_date: lead.meeting_date || '',
+        meeting_time: lead.meeting_time || '',
+        meeting_link: lead.meeting_link || '',
+      });
+    }
+  }, [lead]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    await createLead.mutateAsync({
+    if (!id) return;
+
+    await updateLead.mutateAsync({
+      id,
       name: formData.name,
       specialty: formData.specialty,
       instagram: formData.instagram,
@@ -56,18 +86,29 @@ export default function NewLead() {
       whatsapp_group: formData.whatsapp_group || null,
       desired_products: formData.desired_products || null,
       negotiated_value: formData.negotiated_value ? parseFloat(formData.negotiated_value) : null,
+      paid_value: formData.paid_value ? parseFloat(formData.paid_value) : null,
       observations: formData.observations || null,
       meeting_date: formData.meeting_date || null,
       meeting_time: formData.meeting_time || null,
       meeting_link: formData.meeting_link || null,
     });
     
-    navigate('/leads');
+    navigate(`/leads/${id}`);
   };
 
   const updateField = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  if (isLoadingLead) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -78,16 +119,16 @@ export default function NewLead() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">Novo Lead</h1>
-            <p className="text-muted-foreground">Adicione um novo lead ao seu CRM</p>
+            <h1 className="text-3xl font-bold text-foreground">Editar Lead</h1>
+            <p className="text-muted-foreground">{lead?.name}</p>
           </div>
-          <Button type="submit" className="gap-2" disabled={createLead.isPending}>
-            {createLead.isPending ? (
+          <Button type="submit" className="gap-2" disabled={updateLead.isPending}>
+            {updateLead.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Save className="w-4 h-4" />
             )}
-            Salvar Lead
+            Salvar Alterações
           </Button>
         </div>
 
@@ -178,13 +219,6 @@ export default function NewLead() {
                   size="lg"
                   interactive
                 />
-                <span className="text-sm text-muted-foreground">
-                  {formData.stars === 5 && 'Top Priority - Lead muito importante'}
-                  {formData.stars === 4 && 'Alta Prioridade'}
-                  {formData.stars === 3 && 'Prioridade Média'}
-                  {formData.stars === 2 && 'Baixa Prioridade'}
-                  {formData.stars === 1 && 'Lead Iniciante'}
-                </span>
               </div>
             </div>
 
@@ -228,16 +262,29 @@ export default function NewLead() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="negotiated_value">Valor Negociado (R$)</Label>
-              <Input
-                id="negotiated_value"
-                type="number"
-                step="0.01"
-                value={formData.negotiated_value}
-                onChange={(e) => updateField('negotiated_value', e.target.value)}
-                placeholder="Ex: 25000"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="negotiated_value">Valor Negociado (R$)</Label>
+                <Input
+                  id="negotiated_value"
+                  type="number"
+                  step="0.01"
+                  value={formData.negotiated_value}
+                  onChange={(e) => updateField('negotiated_value', e.target.value)}
+                  placeholder="Ex: 25000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paid_value">Valor Pago (R$)</Label>
+                <Input
+                  id="paid_value"
+                  type="number"
+                  step="0.01"
+                  value={formData.paid_value}
+                  onChange={(e) => updateField('paid_value', e.target.value)}
+                  placeholder="Ex: 25000"
+                />
+              </div>
             </div>
           </div>
 

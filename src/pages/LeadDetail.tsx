@@ -9,12 +9,13 @@ import {
   DollarSign,
   User,
   Edit,
-  Loader2
+  Loader2,
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
-import { LeadCalendarEvents } from '@/components/LeadCalendarEvents';
 import { useLead } from '@/hooks/useLeads';
 import { FUNNEL_STAGES } from '@/types/lead';
 import { Button } from '@/components/ui/button';
@@ -256,12 +257,47 @@ export default function LeadDetail() {
               </div>
             </div>
 
-            {/* Calendar Events */}
-            <LeadCalendarEvents 
-              leadId={lead.id} 
-              leadName={lead.name}
-              leadEmail={lead.email}
-            />
+            {/* Meeting Info */}
+            {(lead.meeting_date || lead.meeting_link) && (
+              <div className="bg-card rounded-xl p-6 shadow-card">
+                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Reunião Agendada
+                </h2>
+                
+                <div className="space-y-3">
+                  {lead.meeting_date && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Data e Hora</p>
+                        <p className="font-medium">
+                          {new Date(lead.meeting_date).toLocaleDateString('pt-BR')}
+                          {lead.meeting_time && ` às ${lead.meeting_time.slice(0, 5)}`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {lead.meeting_link && (
+                    <a
+                      href={lead.meeting_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4 text-primary" />
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">Link da Reunião</p>
+                        <p className="font-medium text-primary truncate">
+                          {lead.meeting_link}
+                        </p>
+                      </div>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

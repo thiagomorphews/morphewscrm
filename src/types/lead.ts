@@ -18,6 +18,9 @@ export interface Lead {
   negotiated_value: number | null;
   paid_value: number | null;
   observations: string | null;
+  meeting_date: string | null;
+  meeting_time: string | null;
+  meeting_link: string | null;
   created_at: string;
   updated_at: string;
 }
