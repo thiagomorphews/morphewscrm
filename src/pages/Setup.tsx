@@ -15,11 +15,11 @@ export default function Setup() {
   const [showPassword, setShowPassword] = useState(false);
   
   const [formData, setFormData] = useState({
-    firstName: 'Thiago',
-    lastName: 'Morphews',
-    email: 'thiago.morphews@gmail.com',
-    password: 'Trew1234$',
-    confirmPassword: 'Trew1234$',
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
   });
 
   useEffect(() => {
