@@ -3,20 +3,21 @@ import {
   ArrowLeft, 
   Instagram, 
   Mail, 
-  Users, 
   Calendar,
   MessageSquare,
   DollarSign,
   User,
   Loader2,
   ExternalLink,
-  Clock
+  Clock,
+  Video
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { InlineEdit } from '@/components/InlineEdit';
-import { useLead, useUpdateLead } from '@/hooks/useLeads';
+import { DeleteLeadDialog } from '@/components/DeleteLeadDialog';
+import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
 import { FUNNEL_STAGES, FunnelStage } from '@/types/lead';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,10 +36,18 @@ export default function LeadDetail() {
   
   const { data: lead, isLoading, error } = useLead(id);
   const updateLead = useUpdateLead();
+  const deleteLead = useDeleteLead();
 
   const handleUpdate = (field: string, value: string | number | null) => {
     if (!id) return;
     updateLead.mutate({ id, [field]: value });
+  };
+
+  const handleDelete = () => {
+    if (!id) return;
+    deleteLead.mutate(id, {
+      onSuccess: () => navigate('/leads'),
+    });
   };
 
   if (isLoading) {
@@ -159,17 +168,32 @@ export default function LeadDetail() {
               <h2 className="text-lg font-semibold text-foreground mb-4">Informações de Contato</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                  <div className="p-2 rounded-lg bg-pink-500/10">
+                  <a
+                    href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
+                  >
                     <Instagram className="w-5 h-5 text-pink-500" />
-                  </div>
+                  </a>
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Instagram</p>
-                    <InlineEdit
-                      value={lead.instagram}
-                      onSave={(value) => handleUpdate('instagram', value)}
-                      displayClassName="font-medium text-pink-500"
-                      placeholder="@usuario"
-                    />
+                    <div className="flex items-center gap-2">
+                      <InlineEdit
+                        value={lead.instagram}
+                        onSave={(value) => handleUpdate('instagram', value)}
+                        displayClassName="font-medium text-pink-500"
+                        placeholder="@usuario"
+                      />
+                      <a
+                        href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-pink-500 hover:text-pink-600"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
                   </div>
                 </div>
 
@@ -316,10 +340,11 @@ export default function LeadDetail() {
                   className="w-full justify-center"
                 />
                 
-                <Button variant="outline" className="w-full gap-2">
-                  <Users className="w-4 h-4" />
-                  Criar Grupo WhatsApp
-                </Button>
+                <DeleteLeadDialog
+                  leadName={lead.name}
+                  onConfirm={handleDelete}
+                  isDeleting={deleteLead.isPending}
+                />
               </div>
             </div>
 
@@ -377,6 +402,31 @@ export default function LeadDetail() {
                       className="inline-flex items-center gap-1 mt-2 text-sm text-primary hover:underline"
                     >
                       Abrir link <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {/* Recorded Call Link */}
+                <div className="p-3 rounded-lg bg-accent/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Video className="w-4 h-4 text-accent" />
+                    <p className="text-sm text-muted-foreground">Link da Gravação</p>
+                  </div>
+                  <InlineEdit
+                    value={lead.recorded_call_link}
+                    onSave={(value) => handleUpdate('recorded_call_link', value || null)}
+                    type="url"
+                    placeholder="Cole o link da gravação aqui"
+                    displayClassName="font-medium text-accent break-all"
+                  />
+                  {lead.recorded_call_link && (
+                    <a
+                      href={lead.recorded_call_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-2 text-sm text-accent hover:underline"
+                    >
+                      Assistir gravação <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                 </div>

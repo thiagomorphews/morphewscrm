@@ -117,6 +117,7 @@ export type Database = {
           negotiated_value: number | null
           observations: string | null
           paid_value: number | null
+          recorded_call_link: string | null
           specialty: string
           stage: Database["public"]["Enums"]["funnel_stage"]
           stars: number
@@ -140,6 +141,7 @@ export type Database = {
           negotiated_value?: number | null
           observations?: string | null
           paid_value?: number | null
+          recorded_call_link?: string | null
           specialty: string
           stage?: Database["public"]["Enums"]["funnel_stage"]
           stars?: number
@@ -163,6 +165,7 @@ export type Database = {
           negotiated_value?: number | null
           observations?: string | null
           paid_value?: number | null
+          recorded_call_link?: string | null
           specialty?: string
           stage?: Database["public"]["Enums"]["funnel_stage"]
           stars?: number

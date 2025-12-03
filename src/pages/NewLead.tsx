@@ -38,6 +38,7 @@ export default function NewLead() {
     meeting_date: '',
     meeting_time: '',
     meeting_link: '',
+    recorded_call_link: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,6 +61,7 @@ export default function NewLead() {
       meeting_date: formData.meeting_date || null,
       meeting_time: formData.meeting_time || null,
       meeting_link: formData.meeting_link || null,
+      recorded_call_link: formData.recorded_call_link || null,
     });
     
     navigate('/leads');
@@ -273,6 +275,16 @@ export default function NewLead() {
                   value={formData.meeting_link}
                   onChange={(e) => updateField('meeting_link', e.target.value)}
                   placeholder="https://calendar.app.google/..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="recorded_call_link">Link da Gravação</Label>
+                <Input
+                  id="recorded_call_link"
+                  value={formData.recorded_call_link}
+                  onChange={(e) => updateField('recorded_call_link', e.target.value)}
+                  placeholder="Link do vídeo da call gravada"
                 />
               </div>
             </div>
