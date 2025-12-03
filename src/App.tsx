@@ -20,6 +20,7 @@ import InstagramDMs from "./pages/InstagramDMs";
 import Planos from "./pages/Planos";
 import InterestedLeads from "./pages/InterestedLeads";
 import SuperAdmin from "./pages/SuperAdmin";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,11 @@ const App = () => (
             <Route path="/super-admin" element={
               <ProtectedRoute requireAdmin>
                 <SuperAdmin />
+              </ProtectedRoute>
+            } />
+            <Route path="/onboarding" element={
+              <ProtectedRoute>
+                <Onboarding />
               </ProtectedRoute>
             } />
             
