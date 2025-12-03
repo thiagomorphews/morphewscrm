@@ -4,7 +4,7 @@ import { StatsCards } from '@/components/dashboard/StatsCards';
 import { StarsFilter } from '@/components/dashboard/StarsFilter';
 import { FunnelVisualization } from '@/components/dashboard/FunnelVisualization';
 import { LeadsTable } from '@/components/dashboard/LeadsTable';
-import { CalendarWidget } from '@/components/dashboard/CalendarWidget';
+import { UpcomingMeetings } from '@/components/dashboard/UpcomingMeetings';
 import { useLeads } from '@/hooks/useLeads';
 import { FunnelStage, FUNNEL_STAGES } from '@/types/lead';
 import { Loader2 } from 'lucide-react';
@@ -118,9 +118,9 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Calendar */}
+          {/* Upcoming Meetings */}
           <div className="lg:col-span-4">
-            <CalendarWidget />
+            <UpcomingMeetings leads={leads} />
           </div>
         </div>
 
