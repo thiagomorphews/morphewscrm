@@ -669,13 +669,27 @@ serve(async (req) => {
         break;
 
       case 'update_lead':
-        if (aiResponse.lead_id) {
-          const updated = await updateLead(aiResponse.lead_id, aiResponse.lead_data);
+        let leadToUpdate = aiResponse.lead_id;
+        
+        // If no lead_id, try to find by name
+        if (!leadToUpdate && aiResponse.lead_data?.name) {
+          console.log('Searching lead by name for update:', aiResponse.lead_data.name);
+          const foundLeads = await searchLeads(organizationId, aiResponse.lead_data.name);
+          if (foundLeads.length > 0) {
+            leadToUpdate = foundLeads[0].id;
+            console.log('Found lead for update:', foundLeads[0].name, leadToUpdate);
+          }
+        }
+        
+        if (leadToUpdate) {
+          const updated = await updateLead(leadToUpdate, aiResponse.lead_data);
           const stageLabel = FUNNEL_STAGES[updated.stage as keyof typeof FUNNEL_STAGES] || updated.stage;
           
           responseMessage = `✅ Lead *${updated.name}* atualizado!\n\n` +
             `📍 Etapa: ${stageLabel}\n` +
             `⭐ Estrelas: ${updated.stars}`;
+        } else {
+          responseMessage = `⚠️ Não encontrei um lead com esse nome para atualizar. Você pode criar um novo ou me dizer o nome exato do lead.`;
         }
         break;
 
