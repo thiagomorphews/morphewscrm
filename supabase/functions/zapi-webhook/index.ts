@@ -441,17 +441,26 @@ serve(async (req) => {
     console.log('Z-API Webhook payload:', JSON.stringify(payload, null, 2));
 
     // Z-API sends different event types
-    // We're interested in received messages
-    if (!payload.phone || !payload.text?.message) {
-      console.log('Ignoring non-text message or missing phone');
+    // We're interested in received messages - text OR image with caption
+    const textMessage = payload.text?.message;
+    const imageCaption = payload.image?.caption;
+    const messageContent = textMessage || imageCaption;
+    
+    if (!payload.phone || !messageContent) {
+      console.log('Ignoring message without text/caption or missing phone');
       return new Response(JSON.stringify({ status: 'ignored' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const senderPhone = payload.phone.replace(/\D/g, '');
-    const messageText = payload.text.message;
+    const messageText = messageContent; // Can be text message or image caption
     const isFromMe = payload.fromMe === true;
+    
+    console.log('=== Message Content ===');
+    console.log('Text message:', textMessage || 'N/A');
+    console.log('Image caption:', imageCaption || 'N/A');
+    console.log('Using content:', messageText);
 
     // Ignore messages sent by the system itself
     if (isFromMe) {
