@@ -115,13 +115,13 @@ export default function Planos() {
       if (checkoutError) throw checkoutError;
       if (data?.error) throw new Error(data.error);
       
-      // For free plan, redirect to login with success message
-      if (data?.success && data?.redirect) {
+      // For free plan, redirect to success page
+      if (data?.success) {
         toast({
           title: "Conta criada com sucesso! 🎉",
           description: "Verifique seu e-mail para obter as credenciais de acesso.",
         });
-        navigate(data.redirect);
+        navigate(`/signup-success?email=${encodeURIComponent(leadForm.email.trim())}`);
         return;
       }
       

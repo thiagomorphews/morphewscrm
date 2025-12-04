@@ -139,13 +139,26 @@ serve(async (req) => {
         role: 'owner',
       });
 
+      // Normalize WhatsApp - always store with country code 55
+      let normalizedWhatsapp = customerWhatsapp?.replace(/\D/g, '') || null;
+      if (normalizedWhatsapp) {
+        // Add country code if not present
+        if (!normalizedWhatsapp.startsWith('55')) {
+          normalizedWhatsapp = '55' + normalizedWhatsapp;
+        }
+        // Add 9th digit if needed (11 digits after 55 should become 13 total)
+        if (normalizedWhatsapp.length === 12 && normalizedWhatsapp.startsWith('55')) {
+          normalizedWhatsapp = normalizedWhatsapp.slice(0, 4) + '9' + normalizedWhatsapp.slice(4);
+        }
+      }
+
       // Update profile
       await supabaseAdmin.from('profiles').update({
         first_name: customerName?.split(' ')[0] || 'Usuário',
         last_name: customerName?.split(' ').slice(1).join(' ') || 'Novo',
         organization_id: org.id,
         email: email,
-        whatsapp: customerWhatsapp?.replace(/\D/g, '') || null,
+        whatsapp: normalizedWhatsapp,
       }).eq('user_id', userId);
 
       // Create subscription

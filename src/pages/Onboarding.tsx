@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,12 +14,43 @@ export default function Onboarding() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
   const [formData, setFormData] = useState({
     cnpj: "",
     company_site: "",
     crm_usage_intent: "",
     business_description: "",
   });
+
+  // Check if onboarding was already completed
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (!profile?.organization_id) {
+        setIsChecking(false);
+        return;
+      }
+
+      try {
+        const { data: existing } = await supabase
+          .from("onboarding_data")
+          .select("id")
+          .eq("organization_id", profile.organization_id)
+          .maybeSingle();
+
+        if (existing) {
+          // Onboarding already done, redirect to dashboard
+          navigate("/", { replace: true });
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking onboarding:", error);
+      }
+      
+      setIsChecking(false);
+    };
+
+    checkOnboarding();
+  }, [profile?.organization_id, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,13 +67,17 @@ export default function Onboarding() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from("onboarding_data").insert({
+      // Use upsert to handle both insert and update
+      const { error } = await supabase.from("onboarding_data").upsert({
         organization_id: profile.organization_id,
         user_id: user?.id,
         cnpj: formData.cnpj || null,
         company_site: formData.company_site || null,
         crm_usage_intent: formData.crm_usage_intent || null,
         business_description: formData.business_description || null,
+        completed_at: new Date().toISOString(),
+      }, {
+        onConflict: 'organization_id'
       });
 
       if (error) throw error;
@@ -52,7 +87,7 @@ export default function Onboarding() {
         description: "Bem-vindo ao Morphews CRM!",
       });
 
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (error: any) {
       console.error("Error saving onboarding data:", error);
       toast({
@@ -66,8 +101,16 @@ export default function Onboarding() {
   };
 
   const handleSkip = () => {
-    navigate("/");
+    navigate("/", { replace: true });
   };
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">

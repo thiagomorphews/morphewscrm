@@ -23,6 +23,7 @@ import InterestedLeads from "./pages/InterestedLeads";
 import SuperAdmin from "./pages/SuperAdmin";
 import Onboarding from "./pages/Onboarding";
 import Team from "./pages/Team";
+import SignupSuccess from "./pages/SignupSuccess";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/force-password-change" element={<ForcePasswordChange />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/planos" element={<Planos />} />
+            <Route path="/signup-success" element={<SignupSuccess />} />
             <Route path="/auth/error" element={<AuthError />} />
             
             {/* Home - shows landing for non-auth, dashboard for auth */}
