@@ -387,6 +387,11 @@ EXEMPLOS DE ATUALIZAÇÃO:
 - "Colocar o instagram da Ana" → action: "update_lead", lead_id: "UUID da Ana", lead_data: { instagram: "extraído_da_msg" }
 - "A Joana agora é 5 estrelas" → action: "update_lead", lead_id: "UUID da Joana", lead_data: { stars: 5 }
 
+EXEMPLOS DE CONSULTA DE DADOS:
+- "Quais dados temos da Maria?" → action: "search_lead", lead_id: "UUID da Maria"
+- "Me mostra os dados do João" → action: "search_lead", lead_id: "UUID do João"
+- "O que sabemos sobre a Ana?" → action: "search_lead", lead_id: "UUID da Ana"
+
 REGRAS:
 1. SEMPRE verifique se o lead já existe na lista ANTES de criar um novo!
 2. Se o lead existe, use update_lead com o ID correto!
@@ -395,8 +400,9 @@ REGRAS:
    "Lead cadastrado! 🎯 Em que situação esse lead está?\n1️⃣ Prospectando\n2️⃣ Cliente nos chamou\n3️⃣ Convencendo a marcar call\n4️⃣ Call agendada\n5️⃣ Call positiva\n6️⃣ Aguardando pagamento\n(Se não souber, fica como Não classificado)"
 5. Se o usuário responder a etapa, faça outra pergunta sobre ESTRELAS:
    "Perfeito! E qual a prioridade desse lead?\n⭐ 1 estrela = Baixa prioridade\n⭐⭐⭐ 3 estrelas = Normal (padrão)\n⭐⭐⭐⭐⭐ 5 estrelas = TOP (muito promissor!)"
-6. Seja DIRETO e PRÁTICO
-7. Responda em português brasileiro
+6. QUANDO PERGUNTAREM SOBRE DADOS DE UM LEAD: Use action "search_lead" com o lead_id. A resposta deve SEMPRE incluir o link do CRM para ver/editar os dados completos.
+7. Seja DIRETO e PRÁTICO
+8. Responda em português brasileiro
 
 ${context.pendingAction ? `AÇÃO PENDENTE: ${context.pendingAction}` : ''}
 ${context.pendingLead ? `LEAD PENDENTE: ${JSON.stringify(context.pendingLead)}` : ''}
@@ -736,11 +742,44 @@ serve(async (req) => {
         break;
 
       case 'search_lead':
-        if (aiResponse.search_query) {
+        // If lead_id is provided, get that specific lead's full data
+        if (aiResponse.lead_id) {
+          const { data: lead } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('id', aiResponse.lead_id)
+            .maybeSingle();
+          
+          if (lead) {
+            const stageLabel = FUNNEL_STAGES[lead.stage as keyof typeof FUNNEL_STAGES] || lead.stage;
+            responseMessage = `📋 *Dados de ${lead.name}:*\n\n` +
+              `📍 Etapa: ${stageLabel}\n` +
+              `⭐ Estrelas: ${lead.stars}\n` +
+              (lead.instagram ? `📸 Instagram: @${lead.instagram}\n` : '') +
+              (lead.whatsapp ? `📱 WhatsApp: ${lead.whatsapp}\n` : '') +
+              (lead.email ? `📧 Email: ${lead.email}\n` : '') +
+              (lead.specialty ? `🏢 Especialidade: ${lead.specialty}\n` : '') +
+              (lead.followers ? `👥 Seguidores: ${lead.followers}\n` : '') +
+              (lead.observations ? `📝 Obs: ${lead.observations}\n` : '') +
+              `\n🔗 Ver/editar no CRM:\nhttps://crm.morphews.com/leads/${lead.id}`;
+          } else {
+            responseMessage = `⚠️ Lead não encontrado.`;
+          }
+        } else if (aiResponse.search_query) {
           const leads = await searchLeads(organizationId, aiResponse.search_query);
           
           if (leads.length === 0) {
             responseMessage = `🔍 Nenhum lead encontrado para "${aiResponse.search_query}"`;
+          } else if (leads.length === 1) {
+            // Single result - show full data
+            const lead = leads[0];
+            const stageLabel = FUNNEL_STAGES[lead.stage as keyof typeof FUNNEL_STAGES] || lead.stage;
+            responseMessage = `📋 *Dados de ${lead.name}:*\n\n` +
+              `📍 Etapa: ${stageLabel}\n` +
+              `⭐ Estrelas: ${lead.stars}\n` +
+              (lead.instagram ? `📸 Instagram: @${lead.instagram}\n` : '') +
+              (lead.whatsapp ? `📱 WhatsApp: ${lead.whatsapp}\n` : '') +
+              `\n🔗 Ver/editar no CRM:\nhttps://crm.morphews.com/leads/${lead.id}`;
           } else {
             const leadsList = leads.map((l, i) => 
               `${i + 1}. *${l.name}* ${l.stars}⭐\n` +
@@ -748,8 +787,10 @@ serve(async (req) => {
               (l.instagram ? `   📸 @${l.instagram}\n` : '')
             ).join('\n');
             
-            responseMessage = `🔍 Encontrei ${leads.length} lead(s):\n\n${leadsList}`;
+            responseMessage = `🔍 Encontrei ${leads.length} lead(s):\n\n${leadsList}\n\nQual você quer ver os dados completos?`;
           }
+        } else {
+          responseMessage = `⚠️ Me diga o nome do lead que você quer consultar.`;
         }
         break;
 
