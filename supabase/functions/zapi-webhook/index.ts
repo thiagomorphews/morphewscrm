@@ -564,8 +564,6 @@ serve(async (req) => {
         console.log('Could not save interested lead (may already exist):', e);
       }
       
-      const signupUrl = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app')}/planos`;
-      
       await sendWhatsAppMessage(senderPhone, 
         `👋 Oi${senderName ? `, ${senderName.split(' ')[0]}` : ''}! Percebi que você ainda não tem uma conta no Morphews.\n\n` +
         `🎁 *TESTE GRÁTIS!*\n` +
@@ -574,7 +572,7 @@ serve(async (req) => {
         `✅ Secretária IA no WhatsApp\n` +
         `✅ Dashboard completo\n` +
         `✅ Sem cartão de crédito\n\n` +
-        `📱 É só acessar:\nhttps://morphews.lovable.app/planos\n\n` +
+        `📱 É só acessar:\nhttps://crm.morphews.com/planos\n\n` +
         `Crie sua conta gratuita e volte a me mandar mensagem! 🚀`
       );
       
@@ -631,14 +629,21 @@ serve(async (req) => {
     switch (aiResponse.action) {
       case 'create_lead':
         if (aiResponse.lead_data?.name) {
-          // Check for similar leads first
-          const similarLeads = await findSimilarLeads(
-            organizationId, 
-            aiResponse.lead_data.name,
-            aiResponse.lead_data.instagram
-          );
+          // Skip duplicate check if we just created a lead (prevents showing duplicates after creation)
+          const skipDuplicateCheck = context.pendingAction?.startsWith('lead_created_') || 
+                                     context.pendingAction?.includes('confirmed');
+          
+          // Check for similar leads first (unless we should skip)
+          let similarLeads: any[] = [];
+          if (!skipDuplicateCheck) {
+            similarLeads = await findSimilarLeads(
+              organizationId, 
+              aiResponse.lead_data.name,
+              aiResponse.lead_data.instagram
+            );
+          }
 
-          if (similarLeads.length > 0 && !context.pendingAction?.includes('confirmed')) {
+          if (similarLeads.length > 0) {
             // Found similar leads, ask for confirmation
             const leadsList = similarLeads.map(l => 
               `• ${l.name} (@${l.instagram || 'sem insta'}) - ${FUNNEL_STAGES[l.stage as keyof typeof FUNNEL_STAGES]} ${l.stars}⭐`
@@ -659,10 +664,10 @@ serve(async (req) => {
               `⭐ Estrelas: ${lead.stars}\n` +
               (lead.instagram ? `📸 Instagram: @${lead.instagram}\n` : '') +
               (lead.whatsapp ? `📱 WhatsApp: ${lead.whatsapp}\n` : '') +
-              `\n🔗 Ver no CRM: ${SUPABASE_URL.replace('.supabase.co', '.lovableproject.com')}/lead/${lead.id}`;
+              `\n🔗 Ver no CRM: https://crm.morphews.com/lead/${lead.id}`;
             
-            // Clear pending
-            context.pendingAction = undefined;
+            // Clear pending and mark as just created to avoid duplicate check on next message
+            context.pendingAction = `lead_created_${lead.id}`;
             context.pendingLead = undefined;
           }
         }
