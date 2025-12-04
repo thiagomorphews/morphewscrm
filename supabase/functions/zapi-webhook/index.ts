@@ -518,10 +518,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const organizationId = user.organization_members?.[0]?.organization_id;
+    // Get organization ID from the returned user data
+    const organizationId = user.membership?.organization_id || user.organization_id;
+    
+    console.log('=== Processing Message ===');
+    console.log('User:', user.first_name, user.last_name);
+    console.log('Organization ID:', organizationId);
     
     if (!organizationId) {
+      console.log('ERROR: No organization ID found for user');
       await sendWhatsAppMessage(senderPhone, 
         '❌ Sua conta não está associada a nenhuma organização.\n\n' +
         'Entre em contato com o administrador do sistema.'
