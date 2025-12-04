@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -24,7 +25,10 @@ import { InlineEdit } from '@/components/InlineEdit';
 import { InlineSelect } from '@/components/InlineSelect';
 import { MultiSelect } from '@/components/MultiSelect';
 import { DeleteLeadDialog } from '@/components/DeleteLeadDialog';
+import { LeadStageTimeline } from '@/components/LeadStageTimeline';
+import { StageChangeDialog } from '@/components/StageChangeDialog';
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
+import { useAddStageHistory } from '@/hooks/useLeadStageHistory';
 import { useUsers } from '@/hooks/useUsers';
 import { useLeadSources, useLeadProducts } from '@/hooks/useConfigOptions';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,6 +55,13 @@ export default function LeadDetail() {
   const { user, isAdmin } = useAuth();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
+  const addStageHistory = useAddStageHistory();
+  
+  // State for stage change dialog
+  const [stageChangeDialog, setStageChangeDialog] = useState<{
+    open: boolean;
+    newStage: FunnelStage | null;
+  }>({ open: false, newStage: null });
   
   // Check if current user can see sensitive data (CPF/CNPJ)
   const canSeeSensitiveData = isAdmin || (user && lead?.created_by === user.id);
@@ -72,7 +83,37 @@ export default function LeadDetail() {
 
   const handleUpdate = (field: string, value: string | number | null) => {
     if (!id) return;
+    
+    // If changing stage, open dialog instead
+    if (field === 'stage' && lead && value !== lead.stage) {
+      setStageChangeDialog({ open: true, newStage: value as FunnelStage });
+      return;
+    }
+    
     updateLead.mutate({ id, [field]: value });
+  };
+
+  const handleStageChange = async (reason: string | null) => {
+    if (!id || !lead || !stageChangeDialog.newStage) return;
+    
+    try {
+      // Update the lead stage
+      await updateLead.mutateAsync({ id, stage: stageChangeDialog.newStage });
+      
+      // Record the stage change in history
+      await addStageHistory.mutateAsync({
+        lead_id: id,
+        organization_id: lead.organization_id!,
+        stage: stageChangeDialog.newStage,
+        previous_stage: lead.stage,
+        reason,
+        changed_by: user?.id || null,
+      });
+      
+      setStageChangeDialog({ open: false, newStage: null });
+    } catch (error) {
+      console.error('Error changing stage:', error);
+    }
   };
 
   const handleDelete = () => {
@@ -437,6 +478,9 @@ export default function LeadDetail() {
                 </div>
               </div>
             </div>
+
+            {/* Stage History Timeline */}
+            <LeadStageTimeline leadId={id!} currentStage={lead.stage} />
           </div>
 
           {/* Right Column - Financial & Actions */}
@@ -579,6 +623,18 @@ export default function LeadDetail() {
           </div>
         </div>
       </div>
+
+      {/* Stage Change Dialog */}
+      {lead && stageChangeDialog.newStage && (
+        <StageChangeDialog
+          open={stageChangeDialog.open}
+          onOpenChange={(open) => !open && setStageChangeDialog({ open: false, newStage: null })}
+          previousStage={lead.stage}
+          newStage={stageChangeDialog.newStage}
+          onConfirm={handleStageChange}
+          isLoading={updateLead.isPending || addStageHistory.isPending}
+        />
+      )}
     </Layout>
   );
 }

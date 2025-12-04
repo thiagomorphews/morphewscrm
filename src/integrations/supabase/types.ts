@@ -221,6 +221,47 @@ export type Database = {
           },
         ]
       }
+      lead_stage_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          organization_id: string
+          previous_stage: Database["public"]["Enums"]["funnel_stage"] | null
+          reason: string | null
+          stage: Database["public"]["Enums"]["funnel_stage"]
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          organization_id: string
+          previous_stage?: Database["public"]["Enums"]["funnel_stage"] | null
+          reason?: string | null
+          stage: Database["public"]["Enums"]["funnel_stage"]
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          organization_id?: string
+          previous_stage?: Database["public"]["Enums"]["funnel_stage"] | null
+          reason?: string | null
+          stage?: Database["public"]["Enums"]["funnel_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_stage_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string
