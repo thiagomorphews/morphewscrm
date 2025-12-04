@@ -186,7 +186,7 @@ serve(async (req) => {
               subject: "🎉 Bem-vindo ao Morphews CRM - Plano Grátis!",
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <img src="https://morphews.lovable.app/images/logo-morphews-email.png" alt="Morphews" style="max-width: 150px; margin-bottom: 20px;">
+                  <img src="https://crm.morphews.com/images/logo-morphews-email.png" alt="Morphews" style="max-width: 150px; margin-bottom: 20px;">
                   <h1 style="color: #10b981;">Parabéns, ${customerName?.split(' ')[0] || 'você'}! 🚀</h1>
                   <p>Sua conta gratuita no Morphews CRM foi criada com sucesso!</p>
                   <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -195,7 +195,7 @@ serve(async (req) => {
                   </div>
                   <p style="color: #ef4444;"><strong>⚠️ Por segurança, você deverá trocar sua senha no primeiro acesso.</strong></p>
                   <div style="margin: 30px 0;">
-                    <a href="https://morphews.lovable.app/login" style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                    <a href="https://crm.morphews.com/login" style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
                       Acessar Morphews CRM
                     </a>
                   </div>
