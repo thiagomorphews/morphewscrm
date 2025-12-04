@@ -13,6 +13,15 @@ const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// Debug: Log environment variables (redacted)
+console.log('=== Z-API Configuration ===');
+console.log('ZAPI_INSTANCE_ID:', ZAPI_INSTANCE_ID ? `${ZAPI_INSTANCE_ID.substring(0, 8)}...` : 'NOT SET');
+console.log('ZAPI_TOKEN:', ZAPI_TOKEN ? `${ZAPI_TOKEN.substring(0, 8)}...` : 'NOT SET');
+console.log('ZAPI_CLIENT_TOKEN:', ZAPI_CLIENT_TOKEN ? `${ZAPI_CLIENT_TOKEN.substring(0, 8)}...` : 'NOT SET');
+console.log('SUPABASE_URL:', SUPABASE_URL ? 'SET' : 'NOT SET');
+console.log('SUPABASE_SERVICE_ROLE_KEY:', SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
+console.log('===========================');
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Funnel stages mapping
@@ -116,41 +125,57 @@ async function sendWhatsAppMessage(phone: string, message: string) {
 async function findUserByWhatsApp(whatsapp: string) {
   const phoneVariants = normalizeBrazilianPhone(whatsapp);
   
-  console.log('Looking for user with WhatsApp variants:', phoneVariants);
+  console.log('=== Finding User by WhatsApp ===');
+  console.log('Input phone:', whatsapp);
+  console.log('Phone variants to search:', phoneVariants);
   
-  // Try each variant
+  // Try each variant directly
   for (const phone of phoneVariants) {
+    console.log(`Trying direct match for: ${phone}`);
     const { data, error } = await supabase
       .from('profiles')
       .select('*, organization_members(organization_id, role)')
       .eq('whatsapp', phone)
       .maybeSingle();
     
-    if (!error && data) {
-      console.log(`User found: ${data.first_name} ${data.last_name} (matched with ${phone})`);
+    if (error) {
+      console.log(`Error searching for ${phone}:`, error.message);
+    }
+    
+    if (data) {
+      console.log(`✅ User found: ${data.first_name} ${data.last_name} (matched with ${phone})`);
+      console.log(`   Organization ID: ${data.organization_members?.[0]?.organization_id || data.organization_id || 'N/A'}`);
       return data;
     }
   }
   
-  // If not found, also try matching against normalized versions of stored phones
-  // This handles cases where the stored phone is in a different format
-  const { data: allProfiles } = await supabase
+  console.log('Direct match failed. Trying to fetch all profiles...');
+  
+  // If not found, fetch all profiles and do manual matching
+  const { data: allProfiles, error: fetchError } = await supabase
     .from('profiles')
     .select('*, organization_members(organization_id, role)')
     .not('whatsapp', 'is', null);
   
-  if (allProfiles) {
+  if (fetchError) {
+    console.error('Error fetching all profiles:', fetchError.message);
+  }
+  
+  console.log(`Found ${allProfiles?.length || 0} profiles with WhatsApp numbers`);
+  
+  if (allProfiles && allProfiles.length > 0) {
+    console.log('Available profiles:');
     for (const profile of allProfiles) {
+      console.log(`  - ${profile.first_name} ${profile.last_name}: ${profile.whatsapp}`);
+      
       if (!profile.whatsapp) continue;
       
       const storedVariants = normalizeBrazilianPhone(profile.whatsapp);
       
-      // Check if any variant of the incoming phone matches any variant of the stored phone
+      // Check if any variant matches
       for (const incomingVariant of phoneVariants) {
         if (storedVariants.includes(incomingVariant)) {
-          console.log(`User found via cross-match: ${profile.first_name} ${profile.last_name}`);
-          console.log(`Incoming variants: ${phoneVariants.join(', ')}`);
-          console.log(`Stored variants: ${storedVariants.join(', ')}`);
+          console.log(`✅ User found via cross-match: ${profile.first_name} ${profile.last_name}`);
           return profile;
         }
       }
@@ -158,8 +183,7 @@ async function findUserByWhatsApp(whatsapp: string) {
   }
   
   // Log available phones for debugging
-  console.log('User NOT found. Available WhatsApp numbers:', 
-    allProfiles?.map(p => `${p.first_name}: ${p.whatsapp}`).join(', ') || 'none');
+  console.log('❌ User NOT found');
   
   return null;
 }
