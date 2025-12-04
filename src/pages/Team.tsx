@@ -54,6 +54,8 @@ export default function Team() {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  const [isExtraUsersDialogOpen, setIsExtraUsersDialogOpen] = useState(false);
+  const [extraUsersToAdd, setExtraUsersToAdd] = useState(1);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<OrgMember | null>(null);
   const [editRole, setEditRole] = useState<"admin" | "member">("member");
@@ -105,10 +107,10 @@ export default function Team() {
   const canAddUser = currentUserCount < maxUsers;
   const extraUserPrice = plan?.extra_user_price_cents ? plan.extra_user_price_cents / 100 : 37;
 
-  // Filter plans for upgrade (only higher tier than current)
-  const currentPlanPrice = plan?.price_cents || 0;
-  const upgradePlans = allPlans.filter(p => 
-    p.price_cents > currentPlanPrice && 
+  // Filter plans for change (all plans except current and hidden ones)
+  const currentPlanId = plan?.id;
+  const availablePlans = allPlans.filter(p => 
+    p.id !== currentPlanId && 
     p.name !== "INFLUENCER" // Hide special plans
   );
 
@@ -373,62 +375,93 @@ export default function Team() {
 
             {/* Upgrade/Add Users Buttons */}
             <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t">
-              {/* Upgrade Dialog */}
+              {/* Change Plan Dialog */}
               <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" disabled={upgradePlans.length === 0}>
+                  <Button variant="outline">
                     <ArrowUp className="w-4 h-4 mr-2" />
-                    Fazer Upgrade
+                    Alterar Plano
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
-                    <DialogTitle>Fazer Upgrade do Plano</DialogTitle>
+                    <DialogTitle>Alterar Plano</DialogTitle>
                     <DialogDescription>
-                      Escolha um plano com mais recursos para sua equipe
+                      Escolha o plano ideal para sua equipe
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3 py-4">
+                    {/* Current Plan */}
+                    {plan && (
+                      <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold">{plan.name}</p>
+                              <Badge variant="secondary">Atual</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {plan.max_users} usuários • {plan.max_leads ? `${plan.max_leads} leads/mês` : "Leads ilimitados"}
+                            </p>
+                          </div>
+                          <p className="font-bold text-primary">
+                            R$ {(plan.price_cents / 100).toFixed(2).replace(".", ",")}
+                            <span className="text-xs text-muted-foreground font-normal">/mês</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     {loadingPlans ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       </div>
-                    ) : upgradePlans.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500" />
-                        <p>Você já está no plano mais completo!</p>
+                    ) : availablePlans.length === 0 ? (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <p>Nenhum outro plano disponível</p>
                       </div>
                     ) : (
-                      upgradePlans.map((upgradePlan) => (
-                        <div
-                          key={upgradePlan.id}
-                          className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
-                        >
-                          <div>
-                            <p className="font-semibold">{upgradePlan.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {upgradePlan.max_users} usuários • {upgradePlan.max_leads ? `${upgradePlan.max_leads} leads/mês` : "Leads ilimitados"}
-                            </p>
+                      availablePlans.map((availablePlan) => {
+                        const isUpgrade = availablePlan.price_cents > (plan?.price_cents || 0);
+                        return (
+                          <div
+                            key={availablePlan.id}
+                            className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                          >
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">{availablePlan.name}</p>
+                                {isUpgrade ? (
+                                  <Badge className="bg-green-500/20 text-green-600 border-green-500/30">Upgrade</Badge>
+                                ) : (
+                                  <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">Downgrade</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {availablePlan.max_users} usuários • {availablePlan.max_leads ? `${availablePlan.max_leads} leads/mês` : "Leads ilimitados"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <p className="font-bold text-primary">
+                                R$ {(availablePlan.price_cents / 100).toFixed(2).replace(".", ",")}
+                                <span className="text-xs text-muted-foreground font-normal">/mês</span>
+                              </p>
+                              <Button
+                                size="sm"
+                                variant={isUpgrade ? "default" : "outline"}
+                                onClick={() => handleUpgradePlan(availablePlan.id)}
+                                disabled={createCheckout.isPending}
+                              >
+                                {createCheckout.isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  "Escolher"
+                                )}
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <p className="font-bold text-primary">
-                              R$ {(upgradePlan.price_cents / 100).toFixed(2).replace(".", ",")}
-                              <span className="text-xs text-muted-foreground font-normal">/mês</span>
-                            </p>
-                            <Button
-                              size="sm"
-                              onClick={() => handleUpgradePlan(upgradePlan.id)}
-                              disabled={createCheckout.isPending}
-                            >
-                              {createCheckout.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                "Escolher"
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                   <DialogFooter>
@@ -439,19 +472,79 @@ export default function Team() {
                 </DialogContent>
               </Dialog>
 
-              {/* Manage Subscription Button (for extra users, cancel, etc.) */}
-              <Button 
-                variant="outline" 
-                onClick={handleManageSubscription} 
-                disabled={customerPortal.isPending}
-              >
-                {customerPortal.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Plus className="w-4 h-4 mr-2" />
-                )}
-                Adicionar Usuários Extras (R$ {extraUserPrice.toFixed(2).replace(".", ",")}/usuário)
-              </Button>
+              {/* Extra Users Dialog */}
+              <Dialog open={isExtraUsersDialogOpen} onOpenChange={setIsExtraUsersDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Usuários Extras
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Usuários Extras</DialogTitle>
+                    <DialogDescription>
+                      Cada usuário extra custa R$ {extraUserPrice.toFixed(2).replace(".", ",")}/mês
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-6">
+                    <div className="flex items-center justify-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setExtraUsersToAdd(Math.max(1, extraUsersToAdd - 1))}
+                        disabled={extraUsersToAdd <= 1}
+                      >
+                        -
+                      </Button>
+                      <div className="text-center">
+                        <p className="text-4xl font-bold text-primary">{extraUsersToAdd}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {extraUsersToAdd === 1 ? "usuário" : "usuários"}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setExtraUsersToAdd(extraUsersToAdd + 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-6 p-4 rounded-lg bg-muted/50 text-center">
+                      <p className="text-sm text-muted-foreground">Valor adicional mensal</p>
+                      <p className="text-2xl font-bold text-primary">
+                        R$ {(extraUsersToAdd * extraUserPrice).toFixed(2).replace(".", ",")}
+                        <span className="text-sm text-muted-foreground font-normal">/mês</span>
+                      </p>
+                    </div>
+
+                    {subscription?.extra_users > 0 && (
+                      <p className="text-sm text-muted-foreground text-center mt-4">
+                        Você já tem {subscription.extra_users} usuário(s) extra(s)
+                      </p>
+                    )}
+                  </div>
+                  <DialogFooter className="flex-col sm:flex-row gap-2">
+                    <Button variant="outline" onClick={() => setIsExtraUsersDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setIsExtraUsersDialogOpen(false);
+                        handleManageSubscription();
+                      }}
+                      disabled={customerPortal.isPending}
+                    >
+                      {customerPortal.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : null}
+                      Continuar para Pagamento
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
