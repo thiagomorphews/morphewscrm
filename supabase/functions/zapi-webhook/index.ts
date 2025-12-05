@@ -177,6 +177,94 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
   }
 }
 
+// Analyze image using Gemini Vision
+async function analyzeImage(imageUrl: string, caption?: string): Promise<string | null> {
+  console.log('=== Analyzing Image with Vision ===');
+  console.log('Image URL:', imageUrl);
+  console.log('Caption:', caption || 'No caption');
+  
+  if (!LOVABLE_API_KEY) {
+    console.error('LOVABLE_API_KEY not configured');
+    return null;
+  }
+  
+  try {
+    // Download the image and convert to base64
+    console.log('Downloading image...');
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      console.error('Failed to download image:', imageResponse.status);
+      return null;
+    }
+    
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    const dataUrl = `data:${contentType};base64,${base64Image}`;
+    
+    console.log('Image downloaded and converted to base64, size:', imageBuffer.byteLength, 'bytes');
+    
+    // Use Gemini Vision to analyze the image
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Você é uma secretária virtual de CRM. Analise esta imagem (screenshot de conversa, contato, ou informação de cliente) e extraia TODAS as informações relevantes para cadastro ou atualização de lead.
+
+${caption ? `O usuário enviou junto com a legenda: "${caption}"` : 'A imagem foi enviada sem legenda.'}
+
+EXTRAIA E LISTE:
+- Nome completo da pessoa (se visível)
+- Número de telefone/WhatsApp (com DDD, formato: XX XXXXX-XXXX)
+- Instagram ou outras redes sociais
+- Email (se visível)
+- Data e horário de reunião/compromisso mencionado
+- Qualquer observação importante sobre o cliente
+- Contexto da conversa (o que está sendo combinado)
+
+Se for um screenshot de conversa, descreva o que está sendo discutido e quais próximos passos foram combinados.
+
+RESPONDA DE FORMA ESTRUTURADA para que eu possa criar/atualizar o lead. Se não conseguir identificar informações relevantes, diga claramente o que conseguiu ver na imagem.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: dataUrl
+                }
+              }
+            ]
+          }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini Vision API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const analysisResult = data.choices?.[0]?.message?.content;
+    
+    console.log('Image analysis result:', analysisResult);
+    return analysisResult;
+  } catch (error) {
+    console.error('Error analyzing image:', error);
+    return null;
+  }
+}
+
 async function findUserByWhatsApp(whatsapp: string) {
   const phoneVariants = normalizeBrazilianPhone(whatsapp);
   
@@ -732,14 +820,15 @@ serve(async (req) => {
     console.log('Z-API Webhook payload:', JSON.stringify(payload, null, 2));
 
     // Z-API sends different event types
-    // We're interested in received messages - text, image with caption, or audio
+    // We're interested in received messages - text, image (with or without caption), or audio
     const textMessage = payload.text?.message;
+    const imageUrl = payload.image?.imageUrl;
     const imageCaption = payload.image?.caption;
     const audioUrl = payload.audio?.audioUrl;
     
     // Check if it's an audio message - transcribe it first
     let audioTranscription: string | null = null;
-    if (audioUrl && !textMessage && !imageCaption) {
+    if (audioUrl && !textMessage && !imageUrl) {
       console.log('=== Audio Message Detected ===');
       audioTranscription = await transcribeAudio(audioUrl);
       if (!audioTranscription) {
@@ -751,24 +840,48 @@ serve(async (req) => {
       console.log('Audio transcription:', audioTranscription);
     }
     
-    const messageContent = textMessage || imageCaption || audioTranscription;
+    // Check if it's an image message - analyze it with Vision AI
+    let imageAnalysis: string | null = null;
+    if (imageUrl) {
+      console.log('=== Image Message Detected ===');
+      console.log('Image URL:', imageUrl);
+      console.log('Image Caption:', imageCaption || 'No caption');
+      
+      imageAnalysis = await analyzeImage(imageUrl, imageCaption);
+      if (imageAnalysis) {
+        console.log('Image analysis successful');
+        // Prepend context about the image
+        imageAnalysis = `[ANÁLISE DE IMAGEM ENVIADA PELO USUÁRIO]\n${imageAnalysis}\n\n${imageCaption ? `Legenda do usuário: "${imageCaption}"` : 'Sem legenda.'}`;
+      } else {
+        console.log('Failed to analyze image');
+        // If we have a caption, use that at least
+        if (imageCaption) {
+          imageAnalysis = `[Imagem enviada com legenda]: ${imageCaption}`;
+        }
+      }
+    }
+    
+    // Priority: text message > image analysis > audio transcription
+    const messageContent = textMessage || imageAnalysis || audioTranscription;
     
     if (!payload.phone || !messageContent) {
-      console.log('Ignoring message without text/caption/audio or missing phone');
+      console.log('Ignoring message without text/image/audio or missing phone');
       return new Response(JSON.stringify({ status: 'ignored' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const senderPhone = payload.phone.replace(/\D/g, '');
-    const messageText = messageContent; // Can be text message, image caption, or audio transcription
+    const messageText = messageContent; // Can be text message, image analysis, or audio transcription
     const isFromMe = payload.fromMe === true;
     
     console.log('=== Message Content ===');
     console.log('Text message:', textMessage || 'N/A');
+    console.log('Image URL:', imageUrl || 'N/A');
     console.log('Image caption:', imageCaption || 'N/A');
+    console.log('Image analysis:', imageAnalysis ? 'Analyzed successfully' : 'N/A');
     console.log('Audio transcription:', audioTranscription || 'N/A');
-    console.log('Using content:', messageText);
+    console.log('Using content:', messageText.substring(0, 200) + (messageText.length > 200 ? '...' : ''));
 
     // Ignore messages sent by the system itself
     if (isFromMe) {
