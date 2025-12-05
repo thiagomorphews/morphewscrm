@@ -182,7 +182,7 @@ export default function WhatsAppChat() {
   useEffect(() => {
     fetchMessages();
 
-    // Realtime for messages
+    // Realtime for messages + polling backup every 3 seconds
     if (selectedConversation) {
       const channel = supabase
         .channel(`messages-${selectedConversation.id}`)
@@ -192,9 +192,8 @@ export default function WhatsAppChat() {
           table: 'whatsapp_messages',
           filter: `conversation_id=eq.${selectedConversation.id}`
         }, (payload) => {
-          console.log('New message received:', payload.new);
+          console.log('New message received via realtime:', payload.new);
           setMessages(prev => {
-            // Avoid duplicates
             const exists = prev.some(m => m.id === (payload.new as Message).id);
             if (exists) return prev;
             return [...prev, payload.new as Message];
@@ -212,8 +211,29 @@ export default function WhatsAppChat() {
         })
         .subscribe();
 
+      // Polling backup - fetch new messages every 3 seconds
+      const pollInterval = setInterval(async () => {
+        const { data } = await supabase
+          .from('whatsapp_messages')
+          .select('*')
+          .eq('conversation_id', selectedConversation.id)
+          .order('created_at', { ascending: true });
+        
+        if (data) {
+          setMessages(prev => {
+            // Only update if there are new messages
+            if (data.length > prev.length || 
+                (data.length > 0 && prev.length > 0 && data[data.length - 1].id !== prev[prev.length - 1].id)) {
+              return data;
+            }
+            return prev;
+          });
+        }
+      }, 3000);
+
       return () => {
         supabase.removeChannel(channel);
+        clearInterval(pollInterval);
       };
     }
   }, [selectedConversation?.id]);
