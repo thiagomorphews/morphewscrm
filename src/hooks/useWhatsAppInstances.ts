@@ -113,6 +113,8 @@ export function useCreateWhatsAppInstance() {
       name: string;
       couponId?: string;
       discountCents?: number;
+      provider?: "zapi" | "wasenderapi";
+      priceCents?: number;
     }) => {
       if (!profile?.organization_id) throw new Error("Sem organização");
 
@@ -123,6 +125,8 @@ export function useCreateWhatsAppInstance() {
           name: data.name,
           applied_coupon_id: data.couponId || null,
           discount_applied_cents: data.discountCents || 0,
+          provider: data.provider || "zapi",
+          monthly_price_cents: data.priceCents || 19700,
         })
         .select()
         .single();

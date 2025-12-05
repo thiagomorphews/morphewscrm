@@ -616,6 +616,44 @@ export type Database = {
           },
         ]
       }
+      organization_whatsapp_providers: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          organization_id: string
+          price_cents: number
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id: string
+          price_cents?: number
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id?: string
+          price_cents?: number
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_whatsapp_providers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -1078,10 +1116,13 @@ export type Database = {
           organization_id: string
           payment_source: string
           phone_number: string | null
+          provider: string
           qr_code_base64: string | null
           status: string
           stripe_subscription_item_id: string | null
           updated_at: string
+          wasender_api_key: string | null
+          wasender_session_id: string | null
           z_api_client_token: string | null
           z_api_instance_id: string | null
           z_api_token: string | null
@@ -1097,10 +1138,13 @@ export type Database = {
           organization_id: string
           payment_source?: string
           phone_number?: string | null
+          provider?: string
           qr_code_base64?: string | null
           status?: string
           stripe_subscription_item_id?: string | null
           updated_at?: string
+          wasender_api_key?: string | null
+          wasender_session_id?: string | null
           z_api_client_token?: string | null
           z_api_instance_id?: string | null
           z_api_token?: string | null
@@ -1116,10 +1160,13 @@ export type Database = {
           organization_id?: string
           payment_source?: string
           phone_number?: string | null
+          provider?: string
           qr_code_base64?: string | null
           status?: string
           stripe_subscription_item_id?: string | null
           updated_at?: string
+          wasender_api_key?: string | null
+          wasender_session_id?: string | null
           z_api_client_token?: string | null
           z_api_instance_id?: string | null
           z_api_token?: string | null

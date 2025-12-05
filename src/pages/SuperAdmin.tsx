@@ -19,6 +19,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { CouponsTab } from "@/components/super-admin/CouponsTab";
 import { WhatsAppCreditsTab } from "@/components/super-admin/WhatsAppCreditsTab";
+import { WhatsAppProvidersTab } from "@/components/super-admin/WhatsAppProvidersTab";
 
 const MASTER_ADMIN_EMAIL = "thiago.morphews@gmail.com";
 
@@ -760,6 +761,10 @@ export default function SuperAdmin() {
               <MessageSquare className="h-3 w-3" />
               WhatsApp Créditos
             </TabsTrigger>
+            <TabsTrigger value="providers" className="gap-1">
+              <Globe className="h-3 w-3" />
+              WhatsApp Providers
+            </TabsTrigger>
             <TabsTrigger value="plans">Planos</TabsTrigger>
             <TabsTrigger value="users">Usuários sem Org</TabsTrigger>
           </TabsList>
@@ -1229,6 +1234,10 @@ export default function SuperAdmin() {
 
           <TabsContent value="whatsapp">
             <WhatsAppCreditsTab />
+          </TabsContent>
+
+          <TabsContent value="providers">
+            <WhatsAppProvidersTab />
           </TabsContent>
         </Tabs>
       </div>
