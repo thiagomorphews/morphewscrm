@@ -9,6 +9,8 @@ export interface WhatsAppInstance {
   name: string;
   phone_number: string | null;
   z_api_instance_id: string | null;
+  z_api_token: string | null;
+  z_api_client_token: string | null;
   status: "pending" | "active" | "disconnected" | "canceled";
   qr_code_base64: string | null;
   is_connected: boolean;
