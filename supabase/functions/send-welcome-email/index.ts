@@ -2,8 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
+
+// Internal secret for service-to-service calls
+const INTERNAL_SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(0, 32);
 
 interface WelcomeEmailRequest {
   email: string;
@@ -18,6 +21,16 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate internal secret - only other edge functions can call this
+    const internalSecret = req.headers.get("x-internal-secret");
+    if (!INTERNAL_SECRET || internalSecret !== INTERNAL_SECRET) {
+      console.error("Unauthorized: Invalid or missing internal secret");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { email, name, password, planName }: WelcomeEmailRequest = await req.json();
 
     console.log("Sending welcome email to:", email);

@@ -232,11 +232,15 @@ serve(async (req) => {
         // Send welcome email with credentials (only for new users)
         if (tempPassword) {
           try {
+            // Use internal secret derived from service role key for secure internal calls
+            const internalSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(0, 32);
+            
             const emailResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-welcome-email`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+                "x-internal-secret": internalSecret || "",
               },
               body: JSON.stringify({
                 email: customerEmail,
