@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 import { InstancePermissions } from "@/components/whatsapp/InstancePermissions";
+import { ZApiConfigDialog } from "@/components/whatsapp/ZApiConfigDialog";
 
 const INSTANCE_PRICE_CENTS = 19700; // R$ 197
 
@@ -33,6 +34,7 @@ export default function WhatsAppDMs() {
   const [isGeneratingQR, setIsGeneratingQR] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState<string | null>(null);
   const [permissionsInstance, setPermissionsInstance] = useState<WhatsAppInstance | null>(null);
+  const [configInstance, setConfigInstance] = useState<WhatsAppInstance | null>(null);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -123,16 +125,21 @@ export default function WhatsAppDMs() {
   };
 
   const handleGenerateQRCode = async (instance: WhatsAppInstance) => {
+    // Check if Z-API credentials are configured
+    if (!instance.z_api_instance_id || !instance.z_api_token || 
+        instance.z_api_instance_id.startsWith("morphews_") || 
+        instance.z_api_token.startsWith("token_")) {
+      toast({
+        title: "Configure as credenciais Z-API",
+        description: "Clique em 'Configurar' para inserir as credenciais da sua instância Z-API",
+        variant: "destructive",
+      });
+      setConfigInstance(instance);
+      return;
+    }
+
     setIsGeneratingQR(instance.id);
     try {
-      // First, create Z-API instance if not exists
-      if (!instance.z_api_instance_id) {
-        await supabase.functions.invoke("zapi-instance-manager", {
-          body: { action: "create_zapi_instance", instanceId: instance.id },
-        });
-      }
-
-      // Then get QR code
       const { data, error } = await supabase.functions.invoke("zapi-instance-manager", {
         body: { action: "get_qr_code", instanceId: instance.id },
       });
@@ -147,6 +154,7 @@ export default function WhatsAppDMs() {
           description: data.message,
           variant: "destructive",
         });
+        setConfigInstance(instance);
       }
 
       refetch();
@@ -468,7 +476,12 @@ export default function WhatsAppDMs() {
                       <Users className="h-4 w-4" />
                       Permissões
                     </Button>
-                    <Button variant="outline" className="flex-1 gap-2" size="sm">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 gap-2" 
+                      size="sm"
+                      onClick={() => setConfigInstance(instance)}
+                    >
                       <Settings className="h-4 w-4" />
                       Configurar
                     </Button>
@@ -553,6 +566,22 @@ export default function WhatsAppDMs() {
             instanceName={permissionsInstance.name}
             open={!!permissionsInstance}
             onOpenChange={(open) => !open && setPermissionsInstance(null)}
+          />
+        )}
+
+        {/* Z-API Config Dialog */}
+        {configInstance && (
+          <ZApiConfigDialog
+            instanceId={configInstance.id}
+            instanceName={configInstance.name}
+            currentConfig={{
+              z_api_instance_id: configInstance.z_api_instance_id,
+              z_api_token: configInstance.z_api_token,
+              z_api_client_token: configInstance.z_api_client_token,
+            }}
+            open={!!configInstance}
+            onOpenChange={(open) => !open && setConfigInstance(null)}
+            onSaved={() => refetch()}
           />
         )}
       </div>
