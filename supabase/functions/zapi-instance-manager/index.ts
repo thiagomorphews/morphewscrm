@@ -66,12 +66,12 @@ serve(async (req) => {
         console.log("Creating Z-API instance via API...");
         console.log("Webhook URL:", webhookBaseUrl);
 
-        // Z-API uses Client-Token header, not Authorization Bearer
+        // Z-API uses Authorization Bearer for integrator API
         const zapiResponse = await fetch("https://api.z-api.io/instances/integrator/on-demand", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Client-Token": ZAPI_CLIENT_TOKEN,
+            "Authorization": `Bearer ${ZAPI_CLIENT_TOKEN}`,
           },
           body: JSON.stringify({
             name: `Morphews - ${instance.name}`,
