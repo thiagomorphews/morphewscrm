@@ -159,84 +159,130 @@ export default function WhatsAppDMs() {
 
   const handleGenerateQRCode = async (instance: WhatsAppInstance) => {
     setIsGeneratingQR(instance.id);
+    const provider = instance.provider || "zapi";
     
     try {
-      // Check if Z-API credentials need to be created
-      const needsCreation = !instance.z_api_instance_id || 
-                           !instance.z_api_token || 
-                           instance.z_api_instance_id.startsWith("morphews_") || 
-                           instance.z_api_token.startsWith("token_");
+      if (provider === "wasenderapi") {
+        // WasenderAPI flow
+        const needsSession = !instance.wasender_session_id || !instance.wasender_api_key;
 
-      if (needsCreation) {
-        // First, create Z-API instance automatically
-        toast({ 
-          title: "Criando instância Z-API...", 
-          description: "Aguarde enquanto configuramos sua instância automaticamente",
-        });
-
-        const { data: createData, error: createError } = await supabase.functions.invoke("zapi-instance-manager", {
-          body: { action: "create_zapi_instance", instanceId: instance.id },
-        });
-
-        if (createError) throw createError;
-
-        if (!createData?.success) {
-          toast({
-            title: "Erro ao criar instância",
-            description: createData?.message || "Não foi possível criar a instância automaticamente",
-            variant: "destructive",
+        if (needsSession) {
+          toast({ 
+            title: "Criando sessão WasenderAPI...", 
+            description: "Aguarde enquanto configuramos sua instância automaticamente",
           });
-          setConfigInstance(instance);
-          setIsGeneratingQR(null);
-          return;
+
+          const { data: createData, error: createError } = await supabase.functions.invoke("wasenderapi-instance-manager", {
+            body: { action: "create_wasender_session", instanceId: instance.id },
+          });
+
+          if (createError) throw createError;
+
+          if (!createData?.success) {
+            toast({
+              title: "Erro ao criar sessão",
+              description: createData?.message || "Não foi possível criar a sessão automaticamente",
+              variant: "destructive",
+            });
+            setIsGeneratingQR(null);
+            return;
+          }
+
+          toast({ title: "Sessão criada!", description: "Obtendo QR Code..." });
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
-        toast({ title: "Instância criada!", description: "Obtendo QR Code..." });
-        
-        // Wait a moment for Z-API to initialize the instance
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      // Now get the QR code
-      const { data, error } = await supabase.functions.invoke("zapi-instance-manager", {
-        body: { action: "get_qr_code", instanceId: instance.id },
-      });
-
-      if (error) throw error;
-
-      if (data?.qrCode) {
-        toast({ title: "QR Code gerado!", description: "Escaneie com seu WhatsApp" });
-      } else if (data?.needsAutoCreate) {
-        // Instance expired or not found, try to recreate
-        toast({ 
-          title: "Recriando instância...", 
-          description: "A instância anterior expirou. Criando nova...",
-        });
-        
-        const { data: recreateData, error: recreateError } = await supabase.functions.invoke("zapi-instance-manager", {
-          body: { action: "create_zapi_instance", instanceId: instance.id },
+        // Connect session to get QR code
+        const { data: connectData, error: connectError } = await supabase.functions.invoke("wasenderapi-instance-manager", {
+          body: { action: "connect_session", instanceId: instance.id },
         });
 
-        if (recreateError) throw recreateError;
-        
-        if (recreateData?.success) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          // Try QR code again
-          const { data: qrRetry } = await supabase.functions.invoke("zapi-instance-manager", {
+        if (connectError) throw connectError;
+
+        if (connectData?.qrCode) {
+          toast({ title: "QR Code gerado!", description: "Escaneie com seu WhatsApp" });
+        } else if (connectData?.needsConnect) {
+          // Try get_qr_code
+          const { data: qrData } = await supabase.functions.invoke("wasenderapi-instance-manager", {
             body: { action: "get_qr_code", instanceId: instance.id },
           });
           
-          if (qrRetry?.qrCode) {
+          if (qrData?.qrCode) {
             toast({ title: "QR Code gerado!", description: "Escaneie com seu WhatsApp" });
           }
         }
-      } else if (data?.needsConfig) {
-        toast({ 
-          title: "Configuração manual necessária", 
-          description: data.message,
-          variant: "destructive",
+      } else {
+        // Z-API flow (existing logic)
+        const needsCreation = !instance.z_api_instance_id || 
+                             !instance.z_api_token || 
+                             instance.z_api_instance_id.startsWith("morphews_") || 
+                             instance.z_api_token.startsWith("token_");
+
+        if (needsCreation) {
+          toast({ 
+            title: "Criando instância Z-API...", 
+            description: "Aguarde enquanto configuramos sua instância automaticamente",
+          });
+
+          const { data: createData, error: createError } = await supabase.functions.invoke("zapi-instance-manager", {
+            body: { action: "create_zapi_instance", instanceId: instance.id },
+          });
+
+          if (createError) throw createError;
+
+          if (!createData?.success) {
+            toast({
+              title: "Erro ao criar instância",
+              description: createData?.message || "Não foi possível criar a instância automaticamente",
+              variant: "destructive",
+            });
+            setConfigInstance(instance);
+            setIsGeneratingQR(null);
+            return;
+          }
+
+          toast({ title: "Instância criada!", description: "Obtendo QR Code..." });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        const { data, error } = await supabase.functions.invoke("zapi-instance-manager", {
+          body: { action: "get_qr_code", instanceId: instance.id },
         });
-        setConfigInstance(instance);
+
+        if (error) throw error;
+
+        if (data?.qrCode) {
+          toast({ title: "QR Code gerado!", description: "Escaneie com seu WhatsApp" });
+        } else if (data?.needsAutoCreate) {
+          toast({ 
+            title: "Recriando instância...", 
+            description: "A instância anterior expirou. Criando nova...",
+          });
+          
+          const { data: recreateData, error: recreateError } = await supabase.functions.invoke("zapi-instance-manager", {
+            body: { action: "create_zapi_instance", instanceId: instance.id },
+          });
+
+          if (recreateError) throw recreateError;
+          
+          if (recreateData?.success) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const { data: qrRetry } = await supabase.functions.invoke("zapi-instance-manager", {
+              body: { action: "get_qr_code", instanceId: instance.id },
+            });
+            
+            if (qrRetry?.qrCode) {
+              toast({ title: "QR Code gerado!", description: "Escaneie com seu WhatsApp" });
+            }
+          }
+        } else if (data?.needsConfig) {
+          toast({ 
+            title: "Configuração manual necessária", 
+            description: data.message,
+            variant: "destructive",
+          });
+          setConfigInstance(instance);
+        }
       }
 
       refetch();
@@ -254,8 +300,14 @@ export default function WhatsAppDMs() {
 
   const handleCheckConnection = async (instance: WhatsAppInstance) => {
     setIsCheckingConnection(instance.id);
+    const provider = instance.provider || "zapi";
+    
     try {
-      const { data, error } = await supabase.functions.invoke("zapi-instance-manager", {
+      const edgeFunction = provider === "wasenderapi" 
+        ? "wasenderapi-instance-manager" 
+        : "zapi-instance-manager";
+        
+      const { data, error } = await supabase.functions.invoke(edgeFunction, {
         body: { action: "check_connection", instanceId: instance.id },
       });
 
@@ -629,7 +681,7 @@ export default function WhatsAppDMs() {
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-xs">
-                      {(instance as any).provider === "wasenderapi" ? "Internacional" : "Brasileira"}
+                      {instance.provider === "wasenderapi" ? "Internacional" : "Brasileira"}
                     </Badge>
                   )}
                 </div>

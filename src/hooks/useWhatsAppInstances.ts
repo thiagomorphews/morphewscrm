@@ -11,6 +11,9 @@ export interface WhatsAppInstance {
   z_api_instance_id: string | null;
   z_api_token: string | null;
   z_api_client_token: string | null;
+  provider: "zapi" | "wasenderapi";
+  wasender_session_id: string | null;
+  wasender_api_key: string | null;
   status: "pending" | "active" | "disconnected" | "canceled";
   qr_code_base64: string | null;
   is_connected: boolean;
