@@ -66,24 +66,37 @@ serve(async (req) => {
       // Format phone for WasenderAPI (with + prefix)
       const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
 
-      let endpoint = "https://www.wasenderapi.com/api/send-message";
-      let payload: any = {
+      // WasenderAPI uses a single endpoint for all message types
+      const endpoint = "https://www.wasenderapi.com/api/send-message";
+      const payload: any = {
         to: formattedPhone,
       };
 
-      if (messageType === "text") {
+      // WasenderAPI requires "text" field for text messages
+      if (messageType === "text" && content) {
         payload.text = content;
       } else if (messageType === "image" && mediaUrl) {
-        endpoint = "https://www.wasenderapi.com/api/send-image";
         payload.imageUrl = mediaUrl;
-        payload.caption = mediaCaption || content || "";
+        if (content || mediaCaption) {
+          payload.text = mediaCaption || content;
+        }
       } else if (messageType === "audio" && mediaUrl) {
-        endpoint = "https://www.wasenderapi.com/api/send-audio";
         payload.audioUrl = mediaUrl;
       } else if (messageType === "document" && mediaUrl) {
-        endpoint = "https://www.wasenderapi.com/api/send-document";
         payload.documentUrl = mediaUrl;
-        payload.fileName = mediaCaption || "document";
+        if (mediaCaption) {
+          payload.text = mediaCaption;
+        }
+      } else if (messageType === "video" && mediaUrl) {
+        payload.videoUrl = mediaUrl;
+        if (content || mediaCaption) {
+          payload.text = mediaCaption || content;
+        }
+      }
+      
+      // Validate we have something to send
+      if (!payload.text && !payload.imageUrl && !payload.audioUrl && !payload.documentUrl && !payload.videoUrl) {
+        throw new Error("Message content is required");
       }
 
       const response = await fetch(endpoint, {
