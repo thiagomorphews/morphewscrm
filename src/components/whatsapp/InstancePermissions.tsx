@@ -22,6 +22,7 @@ interface OrgMember {
   user_id: string;
   role: string;
   profiles: {
+    user_id: string;
     first_name: string;
     last_name: string;
     email: string | null;
@@ -45,13 +46,29 @@ export function InstancePermissions({ instanceId, instanceName, open, onOpenChan
     queryFn: async () => {
       if (!profile?.organization_id) return [];
       
-      const { data, error } = await supabase
+      // Get organization members
+      const { data: members, error: membersError } = await supabase
         .from("organization_members")
-        .select("user_id, role, profiles:user_id(first_name, last_name, email)")
+        .select("user_id, role")
         .eq("organization_id", profile.organization_id);
 
-      if (error) throw error;
-      return data as unknown as OrgMember[];
+      if (membersError) throw membersError;
+
+      // Get profiles for these members
+      const userIds = members.map(m => m.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email")
+        .in("user_id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine data
+      return members.map(member => ({
+        user_id: member.user_id,
+        role: member.role,
+        profiles: profiles.find(p => p.user_id === member.user_id) || null,
+      })) as OrgMember[];
     },
     enabled: open && !!profile?.organization_id,
   });
