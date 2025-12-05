@@ -45,6 +45,7 @@ interface OrgMember {
     user_id: string;
     email?: string;
     whatsapp?: string;
+    instagram?: string;
   } | null;
 }
 
@@ -69,6 +70,7 @@ export default function Team() {
     firstName: "",
     lastName: "",
     whatsapp: "",
+    instagram: "",
   });
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export default function Team() {
       const memberIds = membersData.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("first_name, last_name, user_id, email, whatsapp")
+        .select("first_name, last_name, user_id, email, whatsapp, instagram")
         .in("user_id", memberIds);
 
       if (profilesError) throw profilesError;
@@ -288,6 +290,7 @@ export default function Team() {
       firstName: member.profile?.first_name || "",
       lastName: member.profile?.last_name || "",
       whatsapp: member.profile?.whatsapp || "",
+      instagram: member.profile?.instagram || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -350,6 +353,7 @@ export default function Team() {
           first_name: editMemberData.firstName,
           last_name: editMemberData.lastName,
           whatsapp: editMemberData.whatsapp.replace(/\D/g, '') || null,
+          instagram: editMemberData.instagram || null,
         })
         .eq("user_id", editingMember.user_id);
 
@@ -1076,6 +1080,17 @@ export default function Team() {
                 <p className="text-xs text-muted-foreground">
                   Número com código do país. Este número poderá atualizar leads via conversa no WhatsApp pelo número 555130760100.
                 </p>
+              </div>
+
+              {/* Instagram */}
+              <div className="space-y-2">
+                <Label htmlFor="editInstagram">Instagram</Label>
+                <Input
+                  id="editInstagram"
+                  placeholder="seu_usuario"
+                  value={editMemberData.instagram}
+                  onChange={(e) => setEditMemberData({ ...editMemberData, instagram: e.target.value })}
+                />
               </div>
 
               {/* Role */}
