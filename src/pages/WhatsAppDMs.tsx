@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquare, Plus, QrCode, Settings, Users, Check, X, Loader2, Tag, ArrowLeft, RefreshCw, Unplug } from "lucide-react";
+import { MessageSquare, Plus, QrCode, Settings, Users, Check, X, Loader2, Tag, ArrowLeft, RefreshCw, Unplug, Globe, Flag } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useWhatsAppInstances, useValidateCoupon, useCreateWhatsAppInstance, useOrganizationWhatsAppCredits, useUpdateWhatsAppInstance, DiscountCoupon, WhatsAppInstance } from "@/hooks/useWhatsAppInstances";
+import { useOrganizationWhatsAppProviders, PROVIDER_LABELS, PROVIDER_PRICES, type WhatsAppProvider } from "@/hooks/useWhatsAppProviders";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,18 +17,18 @@ import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 import { InstancePermissions } from "@/components/whatsapp/InstancePermissions";
 import { ZApiConfigDialog } from "@/components/whatsapp/ZApiConfigDialog";
 
-const INSTANCE_PRICE_CENTS = 19700; // R$ 197
-
 export default function WhatsAppDMs() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, user } = useAuth();
   const { data: instances, isLoading, refetch } = useWhatsAppInstances();
   const { data: credits } = useOrganizationWhatsAppCredits();
+  const { data: enabledProviders } = useOrganizationWhatsAppProviders();
   const validateCoupon = useValidateCoupon();
   const createInstance = useCreateWhatsAppInstance();
   const updateInstance = useUpdateWhatsAppInstance();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState<WhatsAppProvider>("zapi");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<DiscountCoupon | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
@@ -35,6 +37,23 @@ export default function WhatsAppDMs() {
   const [isCheckingConnection, setIsCheckingConnection] = useState<string | null>(null);
   const [permissionsInstance, setPermissionsInstance] = useState<WhatsAppInstance | null>(null);
   const [configInstance, setConfigInstance] = useState<WhatsAppInstance | null>(null);
+
+  // Check if master admin
+  const isMasterAdmin = user?.email === "thiago.morphews@gmail.com";
+
+  // Get available providers for this organization
+  const availableProviders = enabledProviders?.filter(p => p.is_enabled) || [];
+  
+  // Master admin can see all providers
+  const canSelectProvider = isMasterAdmin || availableProviders.length > 1;
+  
+  // Get price for selected provider
+  const getProviderPrice = (provider: WhatsAppProvider) => {
+    const orgProvider = enabledProviders?.find(p => p.provider === provider);
+    return orgProvider?.price_cents ?? PROVIDER_PRICES[provider];
+  };
+
+  const currentPrice = getProviderPrice(selectedProvider);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -64,8 +83,8 @@ export default function WhatsAppDMs() {
   };
 
   const finalPrice = appliedCoupon 
-    ? Math.max(0, INSTANCE_PRICE_CENTS - appliedCoupon.discount_value_cents)
-    : INSTANCE_PRICE_CENTS;
+    ? Math.max(0, currentPrice - appliedCoupon.discount_value_cents)
+    : currentPrice;
 
   const freeInstancesAvailable = (credits?.free_instances_count || 0) - (instances?.filter(i => i.payment_source === "admin_grant").length || 0);
 
@@ -75,15 +94,28 @@ export default function WhatsAppDMs() {
       return;
     }
 
+    // Check if provider is enabled for org (unless master admin)
+    if (!isMasterAdmin && availableProviders.length > 0 && !availableProviders.find(p => p.provider === selectedProvider)) {
+      toast({ 
+        title: "Provider não disponível", 
+        description: "Este provider não está habilitado para sua organização.",
+        variant: "destructive" 
+      });
+      return;
+    }
+
     try {
       const instance = await createInstance.mutateAsync({
         name: newInstanceName,
         couponId: appliedCoupon?.id,
         discountCents: appliedCoupon?.discount_value_cents,
+        provider: selectedProvider,
+        priceCents: currentPrice,
       });
       
       setShowCreateDialog(false);
       setNewInstanceName("");
+      setSelectedProvider("zapi");
       setCouponCode("");
       setAppliedCoupon(null);
 
@@ -104,6 +136,7 @@ export default function WhatsAppDMs() {
           discountCents: appliedCoupon?.discount_value_cents,
           successUrl: `${window.location.origin}/whatsapp-dms?success=true`,
           cancelUrl: `${window.location.origin}/whatsapp-dms`,
+          priceCents: currentPrice,
         },
       });
 
@@ -331,12 +364,49 @@ export default function WhatsAppDMs() {
                     />
                   </div>
 
+                  {/* Provider Selection */}
+                  {(isMasterAdmin || availableProviders.length > 0) && (
+                    <div className="space-y-2">
+                      <Label>Selecione o Provider</Label>
+                      <RadioGroup
+                        value={selectedProvider}
+                        onValueChange={(value) => setSelectedProvider(value as WhatsAppProvider)}
+                        className="grid grid-cols-2 gap-3"
+                      >
+                        {(isMasterAdmin || availableProviders.find(p => p.provider === "zapi")) && (
+                          <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
+                            <RadioGroupItem value="zapi" id="zapi" />
+                            <Label htmlFor="zapi" className="cursor-pointer flex-1">
+                              <div className="flex items-center gap-2">
+                                <Flag className="h-4 w-4 text-green-600" />
+                                <span className="font-medium">API Brasileira</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">{formatPrice(PROVIDER_PRICES.zapi)}/mês</span>
+                            </Label>
+                          </div>
+                        )}
+                        {(isMasterAdmin || availableProviders.find(p => p.provider === "wasenderapi")) && (
+                          <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
+                            <RadioGroupItem value="wasenderapi" id="wasenderapi" />
+                            <Label htmlFor="wasenderapi" className="cursor-pointer flex-1">
+                              <div className="flex items-center gap-2">
+                                <Globe className="h-4 w-4 text-blue-600" />
+                                <span className="font-medium">API Internacional</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">{formatPrice(PROVIDER_PRICES.wasenderapi)}/mês</span>
+                            </Label>
+                          </div>
+                        )}
+                      </RadioGroup>
+                    </div>
+                  )}
+
                   {/* Pricing */}
                   <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Valor mensal:</span>
                       <span className={appliedCoupon ? "line-through text-muted-foreground" : "font-semibold"}>
-                        {formatPrice(INSTANCE_PRICE_CENTS)}
+                        {formatPrice(currentPrice)}
                       </span>
                     </div>
 
@@ -555,9 +625,13 @@ export default function WhatsAppDMs() {
                     <Badge variant="secondary" className="text-xs">Cortesia</Badge>
                   ) : instance.discount_applied_cents && instance.discount_applied_cents > 0 ? (
                     <Badge className="bg-green-500 text-xs">
-                      {formatPrice(INSTANCE_PRICE_CENTS - instance.discount_applied_cents)}/mês
+                      {formatPrice(instance.monthly_price_cents - instance.discount_applied_cents)}/mês
                     </Badge>
-                  ) : null}
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      {(instance as any).provider === "wasenderapi" ? "Internacional" : "Brasileira"}
+                    </Badge>
+                  )}
                 </div>
               </Card>
             ))}
@@ -571,7 +645,7 @@ export default function WhatsAppDMs() {
                 <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px] text-muted-foreground">
                   <Plus className="h-12 w-12 mb-4" />
                   <p className="font-medium">Contratar Nova Instância</p>
-                  <p className="text-sm">{formatPrice(INSTANCE_PRICE_CENTS)}/mês</p>
+                  <p className="text-sm">A partir de {formatPrice(PROVIDER_PRICES.wasenderapi)}/mês</p>
                 </CardContent>
               </Card>
             )}

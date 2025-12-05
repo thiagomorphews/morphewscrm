@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.whatsapp-multiattendant-webhook]
 verify_jwt = false
+
+[functions.wasenderapi-instance-manager]
+verify_jwt = true
