@@ -21,7 +21,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { action, instanceId } = await req.json();
+    const { action, instanceId, phoneNumber } = await req.json();
 
     console.log("WasenderAPI Instance Manager:", action, instanceId);
 
@@ -56,17 +56,20 @@ serve(async (req) => {
           });
         }
 
+        // Validate phone number
+        if (!phoneNumber) {
+          throw new Error("Número de telefone é obrigatório para criar sessão WasenderAPI");
+        }
+
         // Build webhook URL
         const webhookUrl = `${SUPABASE_URL}/functions/v1/whatsapp-multiattendant-webhook`;
 
         console.log("Creating WasenderAPI session...");
         console.log("Webhook URL:", webhookUrl);
-
-        // Use a placeholder phone number - the real number will be set when user scans QR
-        // WasenderAPI requires this field but it's just for identification
-        const placeholderPhone = "+5500000000000";
+        console.log("Phone number:", phoneNumber);
 
         // Create session on WasenderAPI
+        // phone_number must be in international format with + prefix (e.g., +5511999999999)
         const createResponse = await fetch(`${WASENDERAPI_BASE_URL}/whatsapp-sessions`, {
           method: "POST",
           headers: {
@@ -75,7 +78,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             name: `Morphews - ${instance.name}`,
-            phone_number: placeholderPhone,
+            phone_number: phoneNumber.startsWith("+") ? phoneNumber : `+${phoneNumber}`,
             account_protection: true,
             log_messages: true,
             read_incoming_messages: true,
