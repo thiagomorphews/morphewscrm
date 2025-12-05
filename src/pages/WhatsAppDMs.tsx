@@ -36,6 +36,11 @@ export default function WhatsAppDMs() {
   const [isCheckingConnection, setIsCheckingConnection] = useState<string | null>(null);
   const [permissionsInstance, setPermissionsInstance] = useState<WhatsAppInstance | null>(null);
   const [configInstance, setConfigInstance] = useState<WhatsAppInstance | null>(null);
+  
+  // WasenderAPI phone number dialog
+  const [phoneDialogInstance, setPhoneDialogInstance] = useState<WhatsAppInstance | null>(null);
+  const [wasenderPhoneNumber, setWasenderPhoneNumber] = useState("");
+  const [wasenderCountryCode, setWasenderCountryCode] = useState("55");
 
   // Check if master admin
   const isMasterAdmin = user?.email === "thiago.morphews@gmail.com";
@@ -157,6 +162,26 @@ export default function WhatsAppDMs() {
   };
 
   const handleGenerateQRCode = async (instance: WhatsAppInstance) => {
+    const provider = instance.provider || "zapi";
+    
+    // WasenderAPI: check if needs phone number
+    if (provider === "wasenderapi") {
+      const needsSession = !instance.wasender_session_id || !instance.wasender_api_key;
+      
+      if (needsSession) {
+        // Open dialog to get phone number first
+        setPhoneDialogInstance(instance);
+        setWasenderPhoneNumber("");
+        setWasenderCountryCode("55");
+        return;
+      }
+    }
+    
+    // Proceed with QR generation
+    await executeQRCodeGeneration(instance);
+  };
+
+  const executeQRCodeGeneration = async (instance: WhatsAppInstance, phoneNumber?: string) => {
     setIsGeneratingQR(instance.id);
     const provider = instance.provider || "zapi";
     
@@ -166,13 +191,23 @@ export default function WhatsAppDMs() {
         const needsSession = !instance.wasender_session_id || !instance.wasender_api_key;
 
         if (needsSession) {
+          if (!phoneNumber) {
+            toast({ 
+              title: "Telefone obrigatório", 
+              description: "Por favor, informe o número de telefone para criar a sessão",
+              variant: "destructive",
+            });
+            setIsGeneratingQR(null);
+            return;
+          }
+
           toast({ 
             title: "Criando sessão WasenderAPI...", 
             description: "Aguarde enquanto configuramos sua instância automaticamente",
           });
 
           const { data: createData, error: createError } = await supabase.functions.invoke("wasenderapi-instance-manager", {
-            body: { action: "create_wasender_session", instanceId: instance.id },
+            body: { action: "create_wasender_session", instanceId: instance.id, phoneNumber },
           });
 
           if (createError) throw createError;
@@ -791,6 +826,88 @@ export default function WhatsAppDMs() {
             onSaved={() => refetch()}
           />
         )}
+
+        {/* WasenderAPI Phone Number Dialog */}
+        <Dialog open={!!phoneDialogInstance} onOpenChange={(open) => !open && setPhoneDialogInstance(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-blue-600" />
+                Informe o Número do WhatsApp
+              </DialogTitle>
+              <DialogDescription>
+                Digite o número de telefone que será conectado a esta instância. 
+                Este é o número que receberá as mensagens dos clientes.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Número do WhatsApp *</Label>
+                <div className="flex gap-2">
+                  <div className="flex items-center gap-1 border rounded-md px-3 bg-muted/50">
+                    <span className="text-lg">+</span>
+                    <Input
+                      className="w-14 border-0 p-0 bg-transparent focus-visible:ring-0"
+                      placeholder="55"
+                      value={wasenderCountryCode}
+                      onChange={(e) => setWasenderCountryCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    />
+                  </div>
+                  <Input
+                    className="flex-1"
+                    placeholder="11999999999"
+                    value={wasenderPhoneNumber}
+                    onChange={(e) => setWasenderPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Exemplo para Brasil: +55 11 99999-9999 (digite sem espaços ou traços)
+                </p>
+              </div>
+
+              {wasenderCountryCode && wasenderPhoneNumber && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Número formatado: </span>
+                    <span className="font-mono font-medium">+{wasenderCountryCode}{wasenderPhoneNumber}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setPhoneDialogInstance(null)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={async () => {
+                  if (!wasenderCountryCode || !wasenderPhoneNumber) {
+                    toast({ 
+                      title: "Telefone obrigatório", 
+                      description: "Preencha o código do país e o número de telefone",
+                      variant: "destructive" 
+                    });
+                    return;
+                  }
+                  
+                  const fullPhone = `+${wasenderCountryCode}${wasenderPhoneNumber}`;
+                  setPhoneDialogInstance(null);
+                  
+                  if (phoneDialogInstance) {
+                    await executeQRCodeGeneration(phoneDialogInstance, fullPhone);
+                  }
+                }}
+                disabled={!wasenderCountryCode || !wasenderPhoneNumber}
+              >
+                Criar Sessão e Gerar QR Code
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
