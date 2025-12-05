@@ -23,20 +23,66 @@ function normalizePhone(phone: string): string {
   return clean;
 }
 
-// Find instance by Z-API instance ID
-async function findInstance(zapiInstanceId: string) {
-  const { data, error } = await supabase
+// Find instance by different provider IDs
+async function findInstance(identifier: string, provider?: string) {
+  // Try WasenderAPI first (by wasender_session_id or by ID in webhook)
+  if (provider === "wasenderapi" || !provider) {
+    const { data: wasenderInstance } = await supabase
+      .from("whatsapp_instances")
+      .select("*")
+      .eq("wasender_session_id", identifier)
+      .single();
+
+    if (wasenderInstance) return wasenderInstance;
+
+    // Try by internal ID
+    const { data: byId } = await supabase
+      .from("whatsapp_instances")
+      .select("*")
+      .eq("id", identifier)
+      .single();
+
+    if (byId) return byId;
+  }
+
+  // Try Z-API
+  const { data: zapiInstance } = await supabase
     .from("whatsapp_instances")
     .select("*")
-    .eq("z_api_instance_id", zapiInstanceId)
+    .eq("z_api_instance_id", identifier)
     .single();
 
-  if (error) {
-    console.error("Instance not found:", zapiInstanceId, error);
-    return null;
-  }
+  if (zapiInstance) return zapiInstance;
+
+  console.error("Instance not found:", identifier);
+  return null;
+}
+
+// Try to find existing lead by phone number
+async function findLeadByPhone(organizationId: string, phone: string) {
+  const normalizedPhone = normalizePhone(phone);
   
-  return data;
+  // Generate possible phone formats
+  const variants = [
+    normalizedPhone,
+    normalizedPhone.replace("55", ""),
+    normalizedPhone.length === 13 ? normalizedPhone.slice(0, 4) + normalizedPhone.slice(5) : null,
+    normalizedPhone.length === 12 ? normalizedPhone.slice(0, 4) + "9" + normalizedPhone.slice(4) : null,
+  ].filter(Boolean);
+
+  for (const variant of variants) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id, name, whatsapp")
+      .eq("organization_id", organizationId)
+      .or(`whatsapp.ilike.%${variant}%,secondary_phone.ilike.%${variant}%`)
+      .limit(1)
+      .single();
+
+    if (lead) return lead;
+  }
+
+  return null;
 }
 
 // Get or create conversation
@@ -72,6 +118,9 @@ async function getOrCreateConversation(
     return existing;
   }
 
+  // Try to find matching lead
+  const lead = await findLeadByPhone(organizationId, normalizedPhone);
+
   // Create new conversation
   const { data: newConversation, error } = await supabase
     .from("whatsapp_conversations")
@@ -79,8 +128,9 @@ async function getOrCreateConversation(
       instance_id: instanceId,
       organization_id: organizationId,
       phone_number: normalizedPhone,
-      contact_name: contactName || null,
+      contact_name: contactName || lead?.name || null,
       contact_profile_pic: contactProfilePic || null,
+      lead_id: lead?.id || null,
     })
     .select()
     .single();
@@ -100,7 +150,7 @@ async function saveMessage(
   content: string | null,
   direction: "inbound" | "outbound",
   messageType: string,
-  zapiMessageId?: string,
+  messageId?: string,
   mediaUrl?: string,
   mediaCaption?: string,
   isFromBot = false
@@ -113,7 +163,7 @@ async function saveMessage(
       content,
       direction,
       message_type: messageType,
-      z_api_message_id: zapiMessageId || null,
+      z_api_message_id: messageId || null,
       media_url: mediaUrl || null,
       media_caption: mediaCaption || null,
       is_from_bot: isFromBot,
@@ -160,10 +210,25 @@ serve(async (req) => {
     console.log("=== WhatsApp Multiattendant Webhook ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
-    // Get Z-API instance ID from header or body
-    const zapiInstanceId = req.headers.get("x-instance-id") || body.instanceId;
+    // Detect provider from webhook payload structure
+    let provider = "unknown";
+    let instanceIdentifier = "";
     
-    if (!zapiInstanceId) {
+    // WasenderAPI webhook format
+    if (body.session_id || body.event?.startsWith("messages.")) {
+      provider = "wasenderapi";
+      instanceIdentifier = String(body.session_id || body.sessionId || "");
+    }
+    // Z-API webhook format
+    else if (body.instanceId || req.headers.get("x-instance-id")) {
+      provider = "zapi";
+      instanceIdentifier = body.instanceId || req.headers.get("x-instance-id") || "";
+    }
+    
+    console.log("Provider detected:", provider);
+    console.log("Instance identifier:", instanceIdentifier);
+
+    if (!instanceIdentifier) {
       console.log("No instance ID provided, ignoring...");
       return new Response(JSON.stringify({ status: "ignored" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -171,24 +236,155 @@ serve(async (req) => {
     }
 
     // Find our instance
-    const instance = await findInstance(zapiInstanceId);
+    const instance = await findInstance(instanceIdentifier, provider);
     if (!instance) {
-      console.log("Instance not found:", zapiInstanceId);
+      console.log("Instance not found:", instanceIdentifier);
       return new Response(JSON.stringify({ status: "instance_not_found" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("Instance found:", instance.name, instance.id);
+    console.log("Instance found:", instance.name, instance.id, "provider:", instance.provider);
 
-    // Handle different webhook types
+    // Handle WasenderAPI webhooks
+    if (provider === "wasenderapi" || instance.provider === "wasenderapi") {
+      const event = body.event;
+      
+      switch (event) {
+        case "messages.received": {
+          const message = body.data;
+          const phone = message.from || message.phone;
+          const text = message.body || message.text || message.message || "";
+          const messageId = message.id || message.messageId;
+          const isGroup = message.isGroup || message.from?.includes("@g.us");
+          const senderName = message.pushName || message.senderName || message.name;
+          const messageType = message.type || "text";
+          const mediaUrl = message.mediaUrl || message.image?.url || message.audio?.url || message.video?.url;
+          const caption = message.caption;
+
+          if (!phone) {
+            console.log("No phone number in message");
+            return new Response(JSON.stringify({ status: "no_phone" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Skip group messages
+          if (isGroup) {
+            console.log("Group message, skipping...");
+            return new Response(JSON.stringify({ status: "group_ignored" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Get or create conversation
+          const conversation = await getOrCreateConversation(
+            instance.id,
+            instance.organization_id,
+            phone,
+            senderName
+          );
+
+          // Save the message
+          await saveMessage(
+            conversation.id,
+            instance.id,
+            text || null,
+            "inbound",
+            messageType,
+            messageId,
+            mediaUrl,
+            caption
+          );
+
+          console.log("WasenderAPI message saved:", {
+            conversationId: conversation.id,
+            from: phone,
+            text: text?.substring(0, 50),
+          });
+
+          return new Response(JSON.stringify({ status: "message_saved" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        case "messages.update":
+        case "messages.ack": {
+          const messageId = body.data?.id || body.data?.messageId;
+          const status = body.data?.status || body.data?.ack;
+
+          if (messageId) {
+            const statusMap: Record<string, string> = {
+              "sent": "sent",
+              "delivered": "delivered",
+              "read": "read",
+              "1": "sent",
+              "2": "delivered",
+              "3": "read",
+            };
+
+            const newStatus = statusMap[String(status)] || status;
+
+            if (newStatus) {
+              await supabase
+                .from("whatsapp_messages")
+                .update({ status: newStatus })
+                .eq("z_api_message_id", messageId);
+
+              console.log("Message status updated:", messageId, newStatus);
+            }
+          }
+
+          return new Response(JSON.stringify({ status: "status_updated" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        case "session.status": {
+          const status = body.data?.status;
+          const phone = body.data?.phone_number;
+
+          if (status === "connected" || status === "ready") {
+            await supabase
+              .from("whatsapp_instances")
+              .update({
+                is_connected: true,
+                phone_number: phone,
+                status: "active",
+                qr_code_base64: null,
+              })
+              .eq("id", instance.id);
+
+            console.log("WasenderAPI instance connected:", instance.name, phone);
+          } else if (status === "disconnected" || status === "qr" || status === "NEED_SCAN") {
+            await supabase
+              .from("whatsapp_instances")
+              .update({
+                is_connected: false,
+                status: status === "NEED_SCAN" ? "pending" : "disconnected",
+              })
+              .eq("id", instance.id);
+
+            console.log("WasenderAPI instance status:", instance.name, status);
+          }
+
+          return new Response(JSON.stringify({ status: "status_handled" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        default:
+          console.log("Unknown WasenderAPI event:", event);
+      }
+    }
+
+    // Handle Z-API webhooks (legacy)
     const webhookType = body.type || body.event;
 
     switch (webhookType) {
       case "ReceivedCallback":
       case "message":
       case "received": {
-        // Incoming message
         const phone = body.phone || body.from?.replace("@c.us", "");
         const text = body.text?.message || body.body || body.message || "";
         const messageId = body.messageId || body.id;
@@ -206,7 +402,6 @@ serve(async (req) => {
           });
         }
 
-        // Skip group messages for now
         if (isGroup) {
           console.log("Group message, skipping...");
           return new Response(JSON.stringify({ status: "group_ignored" }), {
@@ -214,7 +409,6 @@ serve(async (req) => {
           });
         }
 
-        // Get or create conversation
         const conversation = await getOrCreateConversation(
           instance.id,
           instance.organization_id,
@@ -223,7 +417,6 @@ serve(async (req) => {
           senderPhoto
         );
 
-        // Save the message
         await saveMessage(
           conversation.id,
           instance.id,
@@ -235,13 +428,11 @@ serve(async (req) => {
           caption
         );
 
-        console.log("Message saved:", {
+        console.log("Z-API message saved:", {
           conversationId: conversation.id,
           from: phone,
           text: text?.substring(0, 50),
         });
-
-        // TODO: Check if bot is enabled for this instance and process with AI
 
         return new Response(JSON.stringify({ status: "message_saved" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -251,19 +442,18 @@ serve(async (req) => {
       case "MessageStatusCallback":
       case "ack":
       case "status": {
-        // Message status update (sent, delivered, read)
         const messageId = body.messageId || body.id;
         const status = body.status || body.ack;
 
         if (messageId) {
           const statusMap: Record<string, string> = {
-            1: "sent",
-            2: "delivered",
-            3: "read",
-            4: "played", // for audio
+            "1": "sent",
+            "2": "delivered",
+            "3": "read",
+            "4": "played",
           };
 
-          const newStatus = typeof status === "number" ? statusMap[status] : status;
+          const newStatus = typeof status === "number" ? statusMap[String(status)] : status;
 
           if (newStatus) {
             await supabase
@@ -282,7 +472,6 @@ serve(async (req) => {
 
       case "connected":
       case "ready": {
-        // WhatsApp connected
         const phone = body.phone || body.wid?.replace("@c.us", "");
 
         await supabase
@@ -304,7 +493,6 @@ serve(async (req) => {
 
       case "disconnected":
       case "qr": {
-        // WhatsApp disconnected or needs QR
         await supabase
           .from("whatsapp_instances")
           .update({

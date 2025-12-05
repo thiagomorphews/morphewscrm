@@ -1,15 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Paperclip, Smile, Phone, Search, ArrowLeft, User, Star, ChevronRight } from "lucide-react";
+import { Send, Paperclip, Smile, Phone, Search, ArrowLeft, User, Star, ChevronRight, Loader2, Plus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface WhatsAppChatProps {
   instanceId: string;
@@ -35,13 +40,19 @@ interface Message {
   is_from_bot: boolean;
   media_url: string | null;
   media_caption: string | null;
+  status: string | null;
 }
 
 export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
+  const navigate = useNavigate();
+  const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageText, setMessageText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCreateLeadDialog, setShowCreateLeadDialog] = useState(false);
+  const [newLeadName, setNewLeadName] = useState("");
+  const [isCreatingLead, setIsCreatingLead] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch conversations
@@ -52,12 +63,13 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
         .from("whatsapp_conversations")
         .select("*")
         .eq("instance_id", instanceId)
-        .order("last_message_at", { ascending: false });
+        .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (error) throw error;
       return data as Conversation[];
     },
     enabled: !!instanceId,
+    refetchInterval: 5000, // Poll every 5 seconds
   });
 
   // Fetch messages for selected conversation
@@ -73,9 +85,21 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
+      
+      // Mark as read
+      if (selectedConversation.unread_count > 0) {
+        await supabase
+          .from("whatsapp_conversations")
+          .update({ unread_count: 0 })
+          .eq("id", selectedConversation.id);
+        
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
+      }
+      
       return data as Message[];
     },
     enabled: !!selectedConversation?.id,
+    refetchInterval: 3000, // Poll every 3 seconds
   });
 
   // Real-time subscription for new messages
@@ -90,7 +114,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
           table: "whatsapp_messages",
           filter: `instance_id=eq.${instanceId}`,
         },
-        (payload) => {
+        () => {
           queryClient.invalidateQueries({ queryKey: ["whatsapp-messages"] });
           queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
         }
@@ -112,8 +136,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
     mutationFn: async (text: string) => {
       if (!selectedConversation) throw new Error("No conversation selected");
 
-      // Call edge function to send message via Z-API
-      const { data, error } = await supabase.functions.invoke("zapi-send-message", {
+      const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
         body: {
           conversationId: selectedConversation.id,
           instanceId: instanceId,
@@ -130,17 +153,83 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
     onSuccess: () => {
       setMessageText("");
       queryClient.invalidateQueries({ queryKey: ["whatsapp-messages"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
     },
     onError: (error: any) => {
       console.error("Error sending message:", error);
-      // Message might still be saved locally even if Z-API fails
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-messages"] });
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
     sendMessage.mutate(messageText);
+  };
+
+  const handleCreateLead = async () => {
+    if (!selectedConversation || !newLeadName.trim() || !profile?.organization_id) return;
+
+    setIsCreatingLead(true);
+    try {
+      // Create lead
+      const { data: lead, error } = await supabase
+        .from("leads")
+        .insert({
+          name: newLeadName,
+          instagram: "",
+          whatsapp: selectedConversation.phone_number,
+          assigned_to: `${profile.first_name} ${profile.last_name}`,
+          organization_id: profile.organization_id,
+          created_by: profile.user_id,
+          stage: "prospect",
+          stars: 3,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update conversation with lead_id
+      await supabase
+        .from("whatsapp_conversations")
+        .update({ lead_id: lead.id })
+        .eq("id", selectedConversation.id);
+
+      // Add as lead responsible
+      await supabase
+        .from("lead_responsibles")
+        .insert({
+          lead_id: lead.id,
+          user_id: profile.user_id,
+          organization_id: profile.organization_id,
+        });
+
+      // Update local state
+      setSelectedConversation({ ...selectedConversation, lead_id: lead.id });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
+
+      toast({ title: "Lead criado com sucesso!" });
+      setShowCreateLeadDialog(false);
+      setNewLeadName("");
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingLead(false);
+    }
+  };
+
+  const handleViewLead = () => {
+    if (selectedConversation?.lead_id) {
+      navigate(`/leads/${selectedConversation.lead_id}`);
+    }
   };
 
   const filteredConversations = conversations?.filter(
@@ -158,6 +247,19 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
       return format(date, "HH:mm");
     }
     return format(date, "dd/MM", { locale: ptBR });
+  };
+
+  const getStatusIcon = (status: string | null) => {
+    switch (status) {
+      case "sent":
+        return "✓";
+      case "delivered":
+        return "✓✓";
+      case "read":
+        return <span className="text-blue-500">✓✓</span>;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -184,11 +286,14 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
         <ScrollArea className="flex-1">
           {loadingConversations ? (
             <div className="p-4 text-center text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
               Carregando conversas...
             </div>
           ) : filteredConversations?.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
-              Nenhuma conversa encontrada
+              <Phone className="h-12 w-12 mx-auto mb-2 opacity-30" />
+              <p>Nenhuma conversa ainda</p>
+              <p className="text-xs mt-1">Aguardando mensagens...</p>
             </div>
           ) : (
             filteredConversations?.map((conversation) => (
@@ -203,7 +308,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={conversation.contact_profile_pic || undefined} />
                   <AvatarFallback className="bg-green-100 text-green-700">
-                    {conversation.contact_name?.charAt(0) || conversation.phone_number.charAt(0)}
+                    {conversation.contact_name?.charAt(0) || conversation.phone_number.slice(-2)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
@@ -219,7 +324,13 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground truncate">
-                      {conversation.phone_number}
+                      {conversation.lead_id ? (
+                        <span className="text-green-600 flex items-center gap-1">
+                          <User className="h-3 w-3" /> Lead vinculado
+                        </span>
+                      ) : (
+                        conversation.phone_number
+                      )}
                     </span>
                     {conversation.unread_count > 0 && (
                       <Badge className="bg-green-500 text-white h-5 min-w-5 flex items-center justify-center">
@@ -255,7 +366,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                 <Avatar>
                   <AvatarImage src={selectedConversation.contact_profile_pic || undefined} />
                   <AvatarFallback className="bg-green-100 text-green-700">
-                    {selectedConversation.contact_name?.charAt(0) || selectedConversation.phone_number.charAt(0)}
+                    {selectedConversation.contact_name?.charAt(0) || selectedConversation.phone_number.slice(-2)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -269,14 +380,27 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
               </div>
               <div className="flex items-center gap-2">
                 {selectedConversation.lead_id ? (
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={handleViewLead}
+                  >
                     <User className="h-4 w-4" />
                     Ver Lead
-                    <ChevronRight className="h-4 w-4" />
+                    <ExternalLink className="h-3 w-3" />
                   </Button>
                 ) : (
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Star className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={() => {
+                      setNewLeadName(selectedConversation.contact_name || "");
+                      setShowCreateLeadDialog(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
                     Criar Lead
                   </Button>
                 )}
@@ -284,15 +408,18 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4 bg-[url('/whatsapp-bg.png')] bg-repeat bg-[length:400px]">
+            <ScrollArea className="flex-1 p-4 bg-muted/20">
               <div className="space-y-2 max-w-3xl mx-auto">
                 {loadingMessages ? (
-                  <div className="text-center text-muted-foreground">
+                  <div className="text-center text-muted-foreground py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     Carregando mensagens...
                   </div>
                 ) : messages?.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
-                    Nenhuma mensagem ainda
+                    <Phone className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                    <p>Nenhuma mensagem ainda</p>
+                    <p className="text-xs mt-1">Envie uma mensagem para iniciar</p>
                   </div>
                 ) : (
                   messages?.map((message) => (
@@ -308,7 +435,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                           "max-w-[75%] rounded-lg px-3 py-2 shadow-sm",
                           message.direction === "outbound"
                             ? "bg-green-100 dark:bg-green-900/40 text-foreground"
-                            : "bg-background text-foreground",
+                            : "bg-background text-foreground border",
                           message.is_from_bot && "border-l-2 border-blue-400"
                         )}
                       >
@@ -317,18 +444,26 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                             🤖 Robô
                           </span>
                         )}
-                        {message.media_url && (
+                        {message.media_url && message.message_type === "image" && (
                           <img
                             src={message.media_url}
                             alt="Media"
                             className="rounded-lg max-w-full mb-2"
                           />
                         )}
+                        {message.media_url && message.message_type === "audio" && (
+                          <audio controls className="max-w-full mb-2">
+                            <source src={message.media_url} />
+                          </audio>
+                        )}
                         <p className="whitespace-pre-wrap break-words">
-                          {message.content || message.media_caption}
+                          {message.content || message.media_caption || (message.message_type !== "text" && `[${message.message_type}]`)}
                         </p>
-                        <span className="text-[10px] text-muted-foreground float-right mt-1 ml-2">
+                        <span className="text-[10px] text-muted-foreground float-right mt-1 ml-2 flex items-center gap-1">
                           {format(new Date(message.created_at), "HH:mm")}
+                          {message.direction === "outbound" && (
+                            <span className="ml-1">{getStatusIcon(message.status)}</span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -341,10 +476,10 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
             {/* Input Area */}
             <div className="p-3 border-t bg-muted/30">
               <div className="flex items-center gap-2 max-w-3xl mx-auto">
-                <Button variant="ghost" size="icon" className="shrink-0">
+                <Button variant="ghost" size="icon" className="shrink-0" disabled>
                   <Smile className="h-5 w-5 text-muted-foreground" />
                 </Button>
-                <Button variant="ghost" size="icon" className="shrink-0">
+                <Button variant="ghost" size="icon" className="shrink-0" disabled>
                   <Paperclip className="h-5 w-5 text-muted-foreground" />
                 </Button>
                 <Input
@@ -358,6 +493,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                     }
                   }}
                   className="flex-1"
+                  disabled={sendMessage.isPending}
                 />
                 <Button
                   size="icon"
@@ -365,7 +501,11 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                   onClick={handleSendMessage}
                   disabled={!messageText.trim() || sendMessage.isPending}
                 >
-                  <Send className="h-5 w-5" />
+                  {sendMessage.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -380,6 +520,47 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
           </div>
         )}
       </div>
+
+      {/* Create Lead Dialog */}
+      <Dialog open={showCreateLeadDialog} onOpenChange={setShowCreateLeadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Lead</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Lead</Label>
+              <Input
+                value={newLeadName}
+                onChange={(e) => setNewLeadName(e.target.value)}
+                placeholder="Digite o nome do lead"
+              />
+            </div>
+            <div>
+              <Label>WhatsApp</Label>
+              <Input
+                value={selectedConversation?.phone_number || ""}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateLeadDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleCreateLead}
+              disabled={!newLeadName.trim() || isCreatingLead}
+            >
+              {isCreatingLead ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Criar Lead
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

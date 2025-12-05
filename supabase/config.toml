@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.wasenderapi-instance-manager]
 verify_jwt = true
+
+[functions.whatsapp-send-message]
+verify_jwt = true
