@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +30,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { EmojiPicker } from '@/components/whatsapp/EmojiPicker';
+import { ImageUpload } from '@/components/whatsapp/ImageUpload';
 
 interface Conversation {
   id: string;
@@ -85,6 +87,9 @@ export default function WhatsAppChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageMime, setSelectedImageMime] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch instances user has access to
@@ -120,6 +125,26 @@ export default function WhatsAppChat() {
 
     fetchInstances();
   }, [user]);
+
+  // Send presence updates every 5 minutes to keep notifications flowing
+  useEffect(() => {
+    const sendPresenceUpdate = async () => {
+      try {
+        await supabase.functions.invoke('whatsapp-presence-update');
+        console.log('Presence update sent');
+      } catch (error) {
+        console.error('Presence update error:', error);
+      }
+    };
+
+    // Send immediately on mount
+    sendPresenceUpdate();
+
+    // Then every 5 minutes
+    const presenceInterval = setInterval(sendPresenceUpdate, 5 * 60 * 1000);
+
+    return () => clearInterval(presenceInterval);
+  }, []);
 
   // Fetch conversations for selected instance
   useEffect(() => {
@@ -273,20 +298,28 @@ export default function WhatsAppChat() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !selectedInstance) return;
+    if ((!newMessage.trim() && !selectedImage) || !selectedConversation || !selectedInstance) return;
     
     const messageText = newMessage.trim();
+    const imageToSend = selectedImage;
+    const imageMime = selectedImageMime;
+    
     setNewMessage('');
+    setSelectedImage(null);
+    setSelectedImageMime(null);
     setIsSending(true);
+    
+    // Determine message type
+    const messageType = imageToSend ? 'image' : 'text';
     
     // Add optimistic message immediately
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}`,
       content: messageText,
       direction: 'outbound',
-      message_type: 'text',
-      media_url: null,
-      media_caption: null,
+      message_type: messageType,
+      media_url: imageToSend,
+      media_caption: messageText || null,
       created_at: new Date().toISOString(),
       is_from_bot: false,
       status: 'sending'
@@ -294,13 +327,23 @@ export default function WhatsAppChat() {
     setMessages(prev => [...prev, optimisticMessage]);
     
     try {
+      const body: any = {
+        instanceId: selectedInstance,
+        conversationId: selectedConversation.id,
+        messageType,
+      };
+
+      if (imageToSend) {
+        // For images, we send the base64 data directly
+        body.mediaUrl = imageToSend;
+        body.mediaCaption = messageText || '';
+        body.content = messageText || '';
+      } else {
+        body.content = messageText;
+      }
+
       const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-        body: {
-          instanceId: selectedInstance,
-          conversationId: selectedConversation.id,
-          content: messageText,
-          messageType: 'text'
-        }
+        body
       });
 
       if (error) throw error;
@@ -318,6 +361,20 @@ export default function WhatsAppChat() {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+  };
+
+  const handleImageSelect = (base64: string, mimeType: string) => {
+    setSelectedImage(base64);
+    setSelectedImageMime(mimeType);
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+    setSelectedImageMime(null);
   };
 
   const createLead = async () => {
@@ -590,9 +647,38 @@ export default function WhatsAppChat() {
                 )}
               </ScrollArea>
 
+              {/* Image Preview */}
+              {selectedImage && (
+                <div className="px-4 py-2 border-t border-border bg-card">
+                  <div className="flex items-center gap-2">
+                    <img 
+                      src={selectedImage} 
+                      alt="Preview" 
+                      className="h-16 w-16 object-cover rounded"
+                    />
+                    <span className="text-sm text-muted-foreground">Imagem selecionada</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearSelectedImage}
+                      className="ml-auto"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Input */}
               <div className="p-4 border-t border-border bg-card">
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+                  <ImageUpload 
+                    onImageSelect={handleImageSelect}
+                    isUploading={isUploadingImage}
+                    selectedImage={selectedImage}
+                    onClear={clearSelectedImage}
+                  />
                   <Input
                     placeholder="Digite sua mensagem..."
                     value={newMessage}
@@ -601,7 +687,10 @@ export default function WhatsAppChat() {
                     disabled={isSending}
                     className="flex-1"
                   />
-                  <Button onClick={sendMessage} disabled={isSending || !newMessage.trim()}>
+                  <Button 
+                    onClick={sendMessage} 
+                    disabled={isSending || (!newMessage.trim() && !selectedImage)}
+                  >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
