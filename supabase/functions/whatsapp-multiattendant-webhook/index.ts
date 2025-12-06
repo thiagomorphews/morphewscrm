@@ -25,6 +25,112 @@ function normalizePhone(phone: string): string {
   return clean;
 }
 
+// Fetch conversation history for context
+async function getConversationHistory(conversationId: string, limit = 20): Promise<Array<{ role: string; content: string }>> {
+  const { data: messages } = await supabase
+    .from("whatsapp_messages")
+    .select("content, direction, created_at, message_type, media_caption")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (!messages || messages.length === 0) return [];
+
+  // Convert to chat format (oldest first)
+  return messages.reverse().map((msg) => ({
+    role: msg.direction === "inbound" ? "user" : "assistant",
+    content: msg.content || msg.media_caption || "[mídia sem texto]",
+  })).filter(m => m.content);
+}
+
+// Generate intelligent AI response based on conversation context
+async function generateAIResponse(
+  conversationHistory: Array<{ role: string; content: string }>,
+  newMessage: string,
+  leadInfo?: { name?: string; stage?: string; products?: string[] } | null
+): Promise<string | null> {
+  if (!LOVABLE_API_KEY) {
+    console.log("LOVABLE_API_KEY not configured, skipping AI response");
+    return null;
+  }
+
+  try {
+    console.log("=== Generating AI response ===");
+    console.log("History messages:", conversationHistory.length);
+    console.log("New message:", newMessage?.substring(0, 100));
+
+    const leadContext = leadInfo 
+      ? `\n\nINFORMAÇÕES DO LEAD NO CRM:
+- Nome: ${leadInfo.name || "Não cadastrado"}
+- Estágio do funil: ${leadInfo.stage || "Não definido"}
+- Produtos de interesse: ${leadInfo.products?.join(", ") || "Não definido"}`
+      : "";
+
+    const systemPrompt = `Você é uma assistente virtual inteligente e profissional para vendedores de um CRM de vendas chamado Morphews.
+
+SEU PAPEL:
+- Você ajuda vendedores a gerenciar leads, agendar reuniões e organizar informações de clientes
+- Você analisa conversas para extrair dados relevantes (nomes, telefones, emails, datas de reunião, etc.)
+- Você é proativa, educada e sempre busca ajudar o vendedor a fechar mais vendas
+
+CAPACIDADES:
+- Analisar imagens e screenshots para extrair informações de leads
+- Transcrever áudios automaticamente
+- Identificar informações importantes em conversas
+- Sugerir próximos passos baseado no contexto
+- Lembrar o contexto da conversa anterior
+
+REGRAS:
+1. Sempre analise o CONTEXTO das mensagens anteriores antes de responder
+2. Se o usuário enviar uma imagem com dados de lead/reunião, extraia as informações E pergunte se quer cadastrar
+3. Seja concisa mas completa
+4. Use emojis moderadamente para ser amigável
+5. Se não tiver certeza de algo, pergunte para confirmar
+6. Priorize extrair: nome, telefone, email, data/hora de reunião
+7. Quando identificar uma reunião marcada, confirme os detalhes: data, hora, com quem
+${leadContext}
+
+EXEMPLOS DE COMPORTAMENTO INTELIGENTE:
+- Se o usuário pedir "cadastrar reunião" e antes enviou dados, use esses dados
+- Se a conversa menciona "segunda 14:00", identifique isso como horário de reunião
+- Se identificar um nome na conversa, use-o para perguntar "Quer cadastrar [Nome] como lead?"`;
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...conversationHistory.slice(-15), // Last 15 messages for context
+      { role: "user", content: newMessage }
+    ];
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI response error:", response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices?.[0]?.message?.content;
+    
+    console.log("=== AI response generated ===");
+    console.log("Response preview:", aiResponse?.substring(0, 200));
+    return aiResponse || null;
+  } catch (error) {
+    console.error("Error generating AI response:", error);
+    return null;
+  }
+}
+
 // Analyze image using Lovable AI (Gemini Vision)
 async function analyzeImage(imageUrl: string, base64Data?: string): Promise<string | null> {
   if (!LOVABLE_API_KEY) {
@@ -595,6 +701,93 @@ async function processWasenderMessage(instance: any, body: any) {
     saved: !!savedMessage,
     hadMediaProcessing: messageType === "image" || messageType === "audio"
   });
+
+  // Generate and send AI response for incoming messages (if bot is enabled)
+  if (!isFromMe && savedMessage && processedContent) {
+    try {
+      // Check if bot is enabled for this instance
+      const { data: botConfig } = await supabase
+        .from("whatsapp_bot_configs")
+        .select("is_enabled, supervisor_mode, bot_name, company_name, main_objective, products_prices")
+        .eq("instance_id", instance.id)
+        .single();
+
+      console.log("Bot config:", botConfig);
+
+      if (botConfig?.is_enabled) {
+        console.log("=== Bot enabled, generating intelligent response ===");
+        
+        // Get conversation history for context
+        const conversationHistory = await getConversationHistory(conversation.id, 20);
+        console.log("Fetched conversation history:", conversationHistory.length, "messages");
+
+        // Get lead info if linked
+        let leadInfo = null;
+        if (conversation.lead_id) {
+          const { data: lead } = await supabase
+            .from("leads")
+            .select("name, stage, products")
+            .eq("id", conversation.lead_id)
+            .single();
+          leadInfo = lead;
+        }
+
+        // Generate AI response based on context
+        const aiResponse = await generateAIResponse(
+          conversationHistory,
+          processedContent,
+          leadInfo
+        );
+
+        if (aiResponse) {
+          console.log("=== Sending AI response ===");
+          console.log("Response preview:", aiResponse.substring(0, 100));
+
+          // Send the AI response via WasenderAPI
+          const apiKey = instance.wasender_api_key;
+          if (apiKey) {
+            const sendResponse = await fetch("https://www.wasenderapi.com/api/send-message", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: phone.startsWith("+") ? phone : `+${phone}`,
+                text: aiResponse,
+              }),
+            });
+
+            if (sendResponse.ok) {
+              const sendData = await sendResponse.json();
+              console.log("AI response sent successfully:", sendData);
+              
+              // Save the AI response to database
+              await saveMessage(
+                conversation.id,
+                instance.id,
+                aiResponse,
+                "outbound",
+                "text",
+                sendData.data?.key?.id || undefined,
+                undefined,
+                undefined,
+                true // isFromBot
+              );
+            } else {
+              const errorText = await sendResponse.text();
+              console.error("Failed to send AI response:", errorText);
+            }
+          }
+        }
+      } else {
+        console.log("Bot not enabled for this instance");
+      }
+    } catch (botError) {
+      console.error("Error in bot response generation:", botError);
+      // Don't fail the webhook if bot fails
+    }
+  }
 
   return savedMessage;
 }
