@@ -66,6 +66,46 @@ serve(async (req) => {
       // Format phone for WasenderAPI (with + prefix)
       const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
 
+      // Check if mediaUrl is base64 data - need to upload first
+      let uploadedImageUrl = mediaUrl;
+      
+      if (messageType === "image" && mediaUrl && mediaUrl.startsWith("data:")) {
+        console.log("Uploading base64 image to WasenderAPI...");
+        
+        // Upload image first
+        const uploadResponse = await fetch("https://www.wasenderapi.com/api/upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${instance.wasender_api_key}`,
+          },
+          body: JSON.stringify({
+            file: mediaUrl,
+          }),
+        });
+
+        const uploadText = await uploadResponse.text();
+        console.log("Upload response:", uploadResponse.status, uploadText);
+
+        if (uploadResponse.ok) {
+          try {
+            const uploadData = JSON.parse(uploadText);
+            if (uploadData.success && uploadData.data?.publicUrl) {
+              uploadedImageUrl = uploadData.data.publicUrl;
+              console.log("Image uploaded successfully:", uploadedImageUrl);
+            } else if (uploadData.data?.url) {
+              uploadedImageUrl = uploadData.data.url;
+              console.log("Image uploaded successfully:", uploadedImageUrl);
+            }
+          } catch (e) {
+            console.error("Failed to parse upload response");
+          }
+        } else {
+          console.error("Image upload failed:", uploadText);
+          throw new Error("Falha ao enviar imagem");
+        }
+      }
+
       // WasenderAPI uses a single endpoint for all message types
       const endpoint = "https://www.wasenderapi.com/api/send-message";
       const payload: any = {
@@ -75,8 +115,8 @@ serve(async (req) => {
       // WasenderAPI requires "text" field for text messages
       if (messageType === "text" && content) {
         payload.text = content;
-      } else if (messageType === "image" && mediaUrl) {
-        payload.imageUrl = mediaUrl;
+      } else if (messageType === "image" && uploadedImageUrl) {
+        payload.imageUrl = uploadedImageUrl;
         if (content || mediaCaption) {
           payload.text = mediaCaption || content;
         }
@@ -126,7 +166,7 @@ serve(async (req) => {
       if (!messageSent) {
         console.error("WasenderAPI send failed:", responseText);
       }
-    } 
+    }
     // Z-API fallback
     else if (instance.provider === "zapi") {
       if (!instance.z_api_instance_id || !instance.z_api_token) {
