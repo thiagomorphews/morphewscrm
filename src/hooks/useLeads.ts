@@ -69,20 +69,34 @@ export function useCreateLead() {
 
       console.log('User authenticated:', user.id, user.email);
 
+      // First try to get org from organization_members directly
+      const { data: memberData, error: memberError } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+
+      console.log('Direct membership query result:', memberData, memberError);
+
       const { data: orgData, error: orgError } = await supabase
         .rpc('get_user_organization_id');
       
+      console.log('RPC get_user_organization_id result:', orgData, orgError);
+
       if (orgError) {
-        console.error('Error getting organization:', orgError);
-        throw new Error('Erro ao identificar sua organização. Faça logout e login novamente.');
+        console.error('Error getting organization via RPC:', orgError);
       }
 
-      if (!orgData) {
+      // Use direct query result if RPC fails
+      const finalOrgId = orgData || memberData?.organization_id;
+
+      if (!finalOrgId) {
         console.error('No organization found for user:', user.id, user.email);
         throw new Error('Sua conta não está vinculada a nenhuma organização. Contate o administrador.');
       }
 
-      console.log('Creating lead - org:', orgData, 'user:', user.id, 'email:', user.email);
+      console.log('Creating lead - org:', finalOrgId, 'user:', user.id, 'email:', user.email);
 
       // Check lead limit for the organization's subscription plan
       const { data: subscription, error: subError } = await supabase
@@ -91,7 +105,7 @@ export function useCreateLead() {
           *,
           plan:subscription_plans(*)
         `)
-        .eq('organization_id', orgData)
+        .eq('organization_id', finalOrgId)
         .maybeSingle();
 
       if (subError) {
@@ -108,7 +122,7 @@ export function useCreateLead() {
         const { count, error: countError } = await supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
-          .eq('organization_id', orgData)
+          .eq('organization_id', finalOrgId)
           .gte('created_at', startOfMonth.toISOString());
 
         if (countError) {
@@ -125,11 +139,13 @@ export function useCreateLead() {
         .from('leads')
         .insert({
           ...lead,
-          organization_id: orgData,
+          organization_id: finalOrgId,
           created_by: user.id,
         })
         .select()
         .single();
+
+      console.log('Lead insert result:', data, error);
 
       if (error) {
         console.error('Error creating lead:', error);
@@ -154,7 +170,7 @@ export function useCreateLead() {
         .insert({
           lead_id: data.id,
           user_id: user.id,
-          organization_id: orgData,
+          organization_id: finalOrgId,
         });
 
       if (responsibleError) {
