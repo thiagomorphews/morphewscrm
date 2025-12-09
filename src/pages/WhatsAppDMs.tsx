@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquare, Plus, QrCode, Settings, Users, Check, X, Loader2, Tag, ArrowLeft, RefreshCw, Unplug, Globe, Flag } from "lucide-react";
+import { MessageSquare, Plus, QrCode, Settings, Users, Check, X, Loader2, Tag, ArrowLeft, RefreshCw, Unplug, Globe, Flag, Phone, Smartphone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,10 @@ export default function WhatsAppDMs() {
   const [wasenderPhoneNumber, setWasenderPhoneNumber] = useState("");
   const [wasenderCountryCode, setWasenderCountryCode] = useState("55");
   const [wasenderSessionName, setWasenderSessionName] = useState("");
+  
+  // Change phone number dialog
+  const [changePhoneInstance, setChangePhoneInstance] = useState<WhatsAppInstance | null>(null);
+  const [isChangingPhone, setIsChangingPhone] = useState(false);
 
   // Check if master admin
   const isMasterAdmin = user?.email === "thiago.morphews@gmail.com";
@@ -729,11 +733,24 @@ export default function WhatsAppDMs() {
                       <CardTitle className="text-lg">{instance.name}</CardTitle>
                       {getStatusBadge(instance.status, instance.is_connected)}
                     </div>
-                    {instance.phone_number && (
-                      <p className="text-sm font-medium text-muted-foreground">
-                        📱 {instance.phone_number}
-                      </p>
-                    )}
+                    
+                    {/* Phone Number Display - More Prominent */}
+                    <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Número conectado:</span>
+                      </div>
+                      {instance.phone_number ? (
+                        <p className="text-base font-semibold font-mono">
+                          {instance.phone_number}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                          Nenhum número conectado ainda
+                        </p>
+                      )}
+                    </div>
+                    
                     <Badge variant="outline" className="text-xs">
                       {formatPrice(instance.monthly_price_cents || getProviderPrice(instance.provider as WhatsAppProvider || "zapi"))}/mês
                     </Badge>
@@ -846,20 +863,38 @@ export default function WhatsAppDMs() {
                       <p className="text-sm text-green-700 dark:text-green-300 font-medium">
                         WhatsApp conectado e funcionando!
                       </p>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDisconnect(instance)}
-                        disabled={isGeneratingQR === instance.id}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        {isGeneratingQR === instance.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Unplug className="h-4 w-4 mr-2" />
+                      <div className="flex gap-2 justify-center flex-wrap">
+                        {/* Change Phone Number - WasenderAPI only */}
+                        {instance.provider === "wasenderapi" && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setChangePhoneInstance(instance);
+                              setWasenderPhoneNumber("");
+                              setWasenderCountryCode("55");
+                            }}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Phone className="h-4 w-4 mr-2" />
+                            Trocar Número
+                          </Button>
                         )}
-                        Desconectar
-                      </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDisconnect(instance)}
+                          disabled={isGeneratingQR === instance.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          {isGeneratingQR === instance.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Unplug className="h-4 w-4 mr-2" />
+                          )}
+                          Desconectar
+                        </Button>
+                      </div>
                     </div>
                   ) : null}
 
@@ -1088,6 +1123,134 @@ export default function WhatsAppDMs() {
                 disabled={!wasenderSessionName.trim() || !wasenderCountryCode || !wasenderPhoneNumber}
               >
                 Criar Sessão e Gerar QR Code
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change Phone Number Dialog - WasenderAPI */}
+        <Dialog open={!!changePhoneInstance} onOpenChange={(open) => !open && setChangePhoneInstance(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5 text-blue-600" />
+                Trocar Número de Telefone
+              </DialogTitle>
+              <DialogDescription>
+                Para trocar o número, a sessão atual será desconectada e você precisará escanear um novo QR Code com o novo telefone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {changePhoneInstance?.phone_number && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm text-muted-foreground">Número atual:</p>
+                  <p className="font-mono font-semibold">{changePhoneInstance.phone_number}</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Novo Número do WhatsApp *</Label>
+                <div className="flex gap-2">
+                  <div className="flex items-center gap-1 border rounded-md px-3 bg-muted/50">
+                    <span className="text-lg">+</span>
+                    <Input
+                      className="w-14 border-0 p-0 bg-transparent focus-visible:ring-0"
+                      placeholder="55"
+                      value={wasenderCountryCode}
+                      onChange={(e) => setWasenderCountryCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    />
+                  </div>
+                  <Input
+                    className="flex-1"
+                    placeholder="11999999999"
+                    value={wasenderPhoneNumber}
+                    onChange={(e) => setWasenderPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Exemplo para Brasil: +55 11 99999-9999
+                </p>
+              </div>
+
+              {wasenderCountryCode && wasenderPhoneNumber && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Novo número: </span>
+                    <span className="font-mono font-medium">+{wasenderCountryCode}{wasenderPhoneNumber}</span>
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  ⚠️ <strong>Atenção:</strong> Após confirmar, você precisará escanear o QR Code com o novo telefone para reconectar.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setChangePhoneInstance(null)}
+                disabled={isChangingPhone}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={async () => {
+                  if (!wasenderCountryCode || !wasenderPhoneNumber) {
+                    toast({ 
+                      title: "Telefone obrigatório", 
+                      description: "Preencha o código do país e o número de telefone",
+                      variant: "destructive" 
+                    });
+                    return;
+                  }
+                  
+                  setIsChangingPhone(true);
+                  const fullPhone = `+${wasenderCountryCode}${wasenderPhoneNumber}`;
+                  
+                  try {
+                    // Call edge function to change phone number
+                    const { data, error } = await supabase.functions.invoke("wasenderapi-instance-manager", {
+                      body: { 
+                        action: "change_phone_number", 
+                        instanceId: changePhoneInstance?.id,
+                        phoneNumber: fullPhone,
+                      },
+                    });
+
+                    if (error) throw error;
+
+                    if (data?.success) {
+                      toast({ 
+                        title: "Número atualizado!", 
+                        description: "Escaneie o QR Code com o novo telefone",
+                      });
+                      setChangePhoneInstance(null);
+                      setWasenderPhoneNumber("");
+                      setWasenderCountryCode("55");
+                      refetch();
+                    } else {
+                      throw new Error(data?.message || "Erro ao trocar número");
+                    }
+                  } catch (error: any) {
+                    toast({
+                      title: "Erro ao trocar número",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsChangingPhone(false);
+                  }
+                }}
+                disabled={!wasenderCountryCode || !wasenderPhoneNumber || isChangingPhone}
+              >
+                {isChangingPhone ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Trocar e Gerar QR Code
               </Button>
             </div>
           </DialogContent>
