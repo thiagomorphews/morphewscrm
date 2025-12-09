@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Bot, Check, CheckCheck, Clock, Download } from 'lucide-react';
+import { Bot, Check, CheckCheck, Clock, Download, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -39,18 +40,31 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     }
   };
 
+  const [imageError, setImageError] = useState(false);
+
   const renderContent = () => {
     switch (message.message_type) {
       case 'image':
         return (
           <div className="space-y-1">
-            {message.media_url && (
+            {message.media_url && !imageError ? (
               <img 
                 src={message.media_url} 
                 alt="Imagem" 
                 className="rounded-lg max-w-full max-h-72 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => window.open(message.media_url!, '_blank')}
+                onError={() => setImageError(true)}
               />
+            ) : (
+              <div 
+                className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                onClick={() => message.media_url && window.open(message.media_url, '_blank')}
+              >
+                <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  Imagem (clique para abrir)
+                </span>
+              </div>
             )}
             {(message.content || message.media_caption) && (
               <p className="whitespace-pre-wrap break-words text-sm">
