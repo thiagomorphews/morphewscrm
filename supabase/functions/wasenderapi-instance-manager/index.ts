@@ -453,6 +453,137 @@ serve(async (req) => {
         });
       }
 
+      case "change_phone_number": {
+        // Change phone number requires disconnect + update + reconnect
+        if (!instance.wasender_session_id) {
+          throw new Error("Session not configured");
+        }
+
+        if (!phoneNumber) {
+          throw new Error("Novo número de telefone é obrigatório");
+        }
+
+        console.log("Changing phone number for WasenderAPI session...");
+        console.log("New phone number:", phoneNumber);
+
+        // Step 1: Disconnect current session
+        console.log("Step 1: Disconnecting current session...");
+        await fetch(
+          `${WASENDERAPI_BASE_URL}/whatsapp-sessions/${instance.wasender_session_id}/disconnect`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${WASENDERAPI_TOKEN}`,
+            },
+          }
+        );
+
+        // Step 2: Update phone number via PUT endpoint
+        console.log("Step 2: Updating phone number...");
+        const updateResponse = await fetch(
+          `${WASENDERAPI_BASE_URL}/whatsapp-sessions/${instance.wasender_session_id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${WASENDERAPI_TOKEN}`,
+            },
+            body: JSON.stringify({
+              phone_number: phoneNumber.startsWith("+") ? phoneNumber : `+${phoneNumber}`,
+            }),
+          }
+        );
+
+        const updateText = await updateResponse.text();
+        console.log("Update response:", updateResponse.status, updateText);
+
+        if (!updateResponse.ok) {
+          console.error("Failed to update phone number:", updateText);
+          // Continue anyway to try reconnecting
+        }
+
+        // Step 3: Update our database
+        await supabaseAdmin
+          .from("whatsapp_instances")
+          .update({
+            is_connected: false,
+            phone_number: null, // Will be updated when connected
+            status: "pending",
+          })
+          .eq("id", instanceId);
+
+        // Step 4: Connect session to get new QR code
+        console.log("Step 3: Connecting to get QR code...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const connectResponse = await fetch(
+          `${WASENDERAPI_BASE_URL}/whatsapp-sessions/${instance.wasender_session_id}/connect`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${WASENDERAPI_TOKEN}`,
+            },
+          }
+        );
+
+        const connectText = await connectResponse.text();
+        console.log("Connect response:", connectResponse.status, connectText);
+
+        let qrCode = null;
+        if (connectResponse.ok) {
+          try {
+            const connectData = JSON.parse(connectText);
+            if (connectData.success && connectData.data?.qrCode) {
+              qrCode = connectData.data.qrCode;
+              
+              await supabaseAdmin
+                .from("whatsapp_instances")
+                .update({ qr_code_base64: qrCode })
+                .eq("id", instanceId);
+            }
+          } catch (e) {
+            console.log("Could not parse connect response");
+          }
+        }
+
+        // If no QR from connect, try qrcode endpoint
+        if (!qrCode) {
+          const qrResponse = await fetch(
+            `${WASENDERAPI_BASE_URL}/whatsapp-sessions/${instance.wasender_session_id}/qrcode`,
+            {
+              method: "GET",
+              headers: {
+                "Authorization": `Bearer ${WASENDERAPI_TOKEN}`,
+              },
+            }
+          );
+
+          if (qrResponse.ok) {
+            try {
+              const qrData = JSON.parse(await qrResponse.text());
+              if (qrData.success && qrData.data?.qrCode) {
+                qrCode = qrData.data.qrCode;
+                
+                await supabaseAdmin
+                  .from("whatsapp_instances")
+                  .update({ qr_code_base64: qrCode })
+                  .eq("id", instanceId);
+              }
+            } catch (e) {
+              console.log("Could not parse QR response");
+            }
+          }
+        }
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "Número atualizado! Escaneie o QR Code com o novo telefone.",
+          qrCode: qrCode,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
