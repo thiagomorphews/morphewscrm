@@ -562,14 +562,33 @@ async function processWasenderMessage(instance: any, body: any) {
   const isFromMe = msgData.key?.fromMe === true;
   
   // Extract phone from various possible fields
+  // IMPORTANT: WasenderAPI uses LID format (remoteJid ends with @lid) which is NOT a real phone number
+  // We need to use senderPn or cleanedSenderPn which contains the actual phone number
   const remoteJid = msgData.key?.remoteJid || msgData.remoteJid || "";
-  let phone = remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+  const isLidFormat = remoteJid.includes("@lid");
   
-  // Fallback to other phone fields if remoteJid parsing failed
+  let phone = "";
+  
+  // Prefer cleanedSenderPn or senderPn for actual phone number (these contain real phone numbers)
+  if (msgData.key?.cleanedSenderPn) {
+    phone = msgData.key.cleanedSenderPn;
+  } else if (msgData.key?.senderPn) {
+    phone = msgData.key.senderPn.replace("@s.whatsapp.net", "").replace("@c.us", "");
+  } else if (!isLidFormat) {
+    // Only use remoteJid if it's NOT in LID format
+    phone = remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "");
+  }
+  
+  // Fallback to other phone fields
   if (!phone) {
-    phone = msgData.key?.cleanedSenderPn ||
-            msgData.from?.replace("@s.whatsapp.net", "").replace("@c.us", "") || 
+    phone = msgData.from?.replace("@s.whatsapp.net", "").replace("@c.us", "") || 
             msgData.phone || "";
+  }
+  
+  // If still using LID as fallback (no better option), log warning but continue
+  if (!phone && isLidFormat) {
+    console.log("WARNING: Using LID format as phone - sending messages may fail. RemoteJid:", remoteJid);
+    phone = remoteJid.replace("@lid", "");
   }
   
   // Extract message content from various WasenderAPI formats
