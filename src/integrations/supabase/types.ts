@@ -14,6 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_identities: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          is_primary: boolean | null
+          organization_id: string
+          type: string
+          value: string
+          value_normalized: string
+          verified_at: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          organization_id: string
+          type: string
+          value: string
+          value_normalized: string
+          verified_at?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          organization_id?: string
+          type?: string
+          value?: string
+          value_normalized?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_identities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_identities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          last_activity_at: string | null
+          metadata: Json | null
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          last_activity_at?: string | null
+          metadata?: Json | null
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          last_activity_at?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_coupons: {
         Row: {
           code: string
@@ -1014,9 +1109,12 @@ export type Database = {
       }
       whatsapp_conversations: {
         Row: {
+          assigned_user_id: string | null
+          contact_id: string | null
           contact_name: string | null
           contact_profile_pic: string | null
           created_at: string
+          customer_phone_e164: string | null
           id: string
           instance_id: string
           last_message_at: string | null
@@ -1024,13 +1122,17 @@ export type Database = {
           organization_id: string
           phone_number: string
           sendable_phone: string | null
+          status: string
           unread_count: number
           updated_at: string
         }
         Insert: {
+          assigned_user_id?: string | null
+          contact_id?: string | null
           contact_name?: string | null
           contact_profile_pic?: string | null
           created_at?: string
+          customer_phone_e164?: string | null
           id?: string
           instance_id: string
           last_message_at?: string | null
@@ -1038,13 +1140,17 @@ export type Database = {
           organization_id: string
           phone_number: string
           sendable_phone?: string | null
+          status?: string
           unread_count?: number
           updated_at?: string
         }
         Update: {
+          assigned_user_id?: string | null
+          contact_id?: string | null
           contact_name?: string | null
           contact_profile_pic?: string | null
           created_at?: string
+          customer_phone_e164?: string | null
           id?: string
           instance_id?: string
           last_message_at?: string | null
@@ -1052,10 +1158,18 @@ export type Database = {
           organization_id?: string
           phone_number?: string
           sendable_phone?: string | null
+          status?: string
           unread_count?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_conversations_instance_id_fkey"
             columns: ["instance_id"]
@@ -1214,6 +1328,7 @@ export type Database = {
       }
       whatsapp_messages: {
         Row: {
+          contact_id: string | null
           content: string | null
           conversation_id: string
           created_at: string
@@ -1228,6 +1343,7 @@ export type Database = {
           z_api_message_id: string | null
         }
         Insert: {
+          contact_id?: string | null
           content?: string | null
           conversation_id: string
           created_at?: string
@@ -1242,6 +1358,7 @@ export type Database = {
           z_api_message_id?: string | null
         }
         Update: {
+          contact_id?: string | null
           content?: string | null
           conversation_id?: string
           created_at?: string
@@ -1256,6 +1373,13 @@ export type Database = {
           z_api_message_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_messages_conversation_id_fkey"
             columns: ["conversation_id"]
@@ -1395,6 +1519,7 @@ export type Database = {
           contact_name: string | null
           contact_profile_pic: string | null
           created_at: string | null
+          customer_phone_e164: string | null
           id: string | null
           last_message_at: string | null
           lead_id: string | null
@@ -1406,40 +1531,49 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          assigned_user_id?: never
+          assigned_user_id?: string | null
           channel_id?: string | null
-          contact_id?: never
+          contact_id?: string | null
           contact_name?: string | null
           contact_profile_pic?: string | null
           created_at?: string | null
+          customer_phone_e164?: string | null
           id?: string | null
           last_message_at?: string | null
           lead_id?: string | null
           phone_number?: string | null
           sendable_phone?: string | null
-          status?: never
+          status?: string | null
           tenant_id?: string | null
           unread_count?: number | null
           updated_at?: string | null
         }
         Update: {
-          assigned_user_id?: never
+          assigned_user_id?: string | null
           channel_id?: string | null
-          contact_id?: never
+          contact_id?: string | null
           contact_name?: string | null
           contact_profile_pic?: string | null
           created_at?: string | null
+          customer_phone_e164?: string | null
           id?: string | null
           last_message_at?: string | null
           lead_id?: string | null
           phone_number?: string | null
           sendable_phone?: string | null
-          status?: never
+          status?: string | null
           tenant_id?: string | null
           unread_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_conversations_instance_id_fkey"
             columns: ["channel_id"]
@@ -1472,7 +1606,19 @@ export type Database = {
       }
     }
     Functions: {
+      backfill_contacts_from_existing_conversations: {
+        Args: { _organization_id: string }
+        Returns: number
+      }
       current_tenant_id: { Args: never; Returns: string }
+      find_contact_by_phone: {
+        Args: { _organization_id: string; _phone: string }
+        Returns: string
+      }
+      get_or_create_contact_by_phone: {
+        Args: { _name?: string; _organization_id: string; _phone: string }
+        Returns: string
+      }
       get_tenant_channels: {
         Args: { _tenant_id?: string }
         Returns: {
@@ -1542,6 +1688,11 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      link_conversation_to_contact: {
+        Args: { _contact_id: string; _conversation_id: string }
+        Returns: undefined
+      }
+      normalize_phone_e164: { Args: { phone: string }; Returns: string }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
