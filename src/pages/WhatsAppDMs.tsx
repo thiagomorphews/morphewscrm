@@ -250,7 +250,6 @@ export default function WhatsAppDMs() {
         name: newInstanceName,
         couponId: appliedCoupon?.id,
         discountCents: appliedCoupon?.discount_value_cents,
-        provider: DEFAULT_PROVIDER,
         priceCents: currentPrice,
       });
       

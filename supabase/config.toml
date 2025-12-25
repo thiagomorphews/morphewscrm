@@ -21,16 +21,7 @@ verify_jwt = false
 [functions.reset-password-request]
 verify_jwt = false
 
-[functions.zapi-webhook]
-verify_jwt = false
-
 [functions.whatsapp-instance-checkout]
-verify_jwt = true
-
-[functions.zapi-instance-manager]
-verify_jwt = true
-
-[functions.zapi-send-message]
 verify_jwt = true
 
 [functions.whatsapp-multiattendant-webhook]
@@ -40,4 +31,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.whatsapp-send-message]
+verify_jwt = true
+
+[functions.whatsapp-presence-update]
 verify_jwt = true

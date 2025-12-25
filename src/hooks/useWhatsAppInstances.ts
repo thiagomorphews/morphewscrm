@@ -8,13 +8,10 @@ export interface WhatsAppInstance {
   organization_id: string;
   name: string;
   phone_number: string | null;
-  z_api_instance_id: string | null;
-  z_api_token: string | null;
-  z_api_client_token: string | null;
-  provider: "zapi" | "wasenderapi";
+  provider: "wasenderapi";
   wasender_session_id: string | null;
   wasender_api_key: string | null;
-  status: "pending" | "active" | "disconnected" | "canceled";
+  status: "pending" | "active" | "disconnected" | "canceled" | "connected" | "waiting_qr" | "logged_out" | "error";
   qr_code_base64: string | null;
   is_connected: boolean;
   monthly_price_cents: number;
@@ -48,6 +45,7 @@ export function useWhatsAppInstances() {
         .from("whatsapp_instances")
         .select("*")
         .eq("organization_id", profile.organization_id)
+        .eq("provider", "wasenderapi")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -116,7 +114,6 @@ export function useCreateWhatsAppInstance() {
       name: string;
       couponId?: string;
       discountCents?: number;
-      provider?: "zapi" | "wasenderapi";
       priceCents?: number;
     }) => {
       if (!profile?.organization_id) throw new Error("Sem organização");
@@ -128,8 +125,8 @@ export function useCreateWhatsAppInstance() {
           name: data.name,
           applied_coupon_id: data.couponId || null,
           discount_applied_cents: data.discountCents || 0,
-          provider: data.provider || "zapi",
-          monthly_price_cents: data.priceCents || 19700,
+          provider: "wasenderapi",
+          monthly_price_cents: data.priceCents || 18500,
         })
         .select()
         .single();
