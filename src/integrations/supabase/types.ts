@@ -1992,6 +1992,7 @@ export type Database = {
         | "seller"
         | "shipping"
         | "finance"
+        | "entregador"
       subscription_status:
         | "active"
         | "canceled"
@@ -2145,6 +2146,7 @@ export const Constants = {
         "seller",
         "shipping",
         "finance",
+        "entregador",
       ],
       subscription_status: [
         "active",
