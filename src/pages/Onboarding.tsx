@@ -25,17 +25,31 @@ export default function Onboarding() {
   // Check if onboarding was already completed
   useEffect(() => {
     const checkOnboarding = async () => {
-      if (!profile?.organization_id) {
+      if (!user?.id) {
         setIsChecking(false);
         return;
       }
 
+      // If no organization_id in profile, skip onboarding entirely
+      if (!profile?.organization_id) {
+        console.log("No organization_id in profile, redirecting to dashboard");
+        navigate("/", { replace: true });
+        return;
+      }
+
       try {
-        const { data: existing } = await supabase
+        const { data: existing, error } = await supabase
           .from("onboarding_data")
           .select("id")
           .eq("organization_id", profile.organization_id)
           .maybeSingle();
+
+        if (error) {
+          console.error("Error checking onboarding:", error);
+          // If there's an RLS error, just skip onboarding
+          navigate("/", { replace: true });
+          return;
+        }
 
         if (existing) {
           // Onboarding already done, redirect to dashboard
@@ -44,13 +58,16 @@ export default function Onboarding() {
         }
       } catch (error) {
         console.error("Error checking onboarding:", error);
+        // On any error, redirect to dashboard instead of blocking
+        navigate("/", { replace: true });
+        return;
       }
       
       setIsChecking(false);
     };
 
     checkOnboarding();
-  }, [profile?.organization_id, navigate]);
+  }, [user?.id, profile?.organization_id, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
