@@ -1794,6 +1794,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      has_onboarding_completed: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1828,6 +1829,15 @@ export type Database = {
         Returns: undefined
       }
       normalize_phone_e164: { Args: { phone: string }; Returns: string }
+      save_onboarding_data: {
+        Args: {
+          _business_description?: string
+          _cnpj?: string
+          _company_site?: string
+          _crm_usage_intent?: string
+        }
+        Returns: undefined
+      }
       user_belongs_to_org: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
