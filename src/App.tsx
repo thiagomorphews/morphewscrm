@@ -31,6 +31,7 @@ import NewSale from "./pages/NewSale";
 import SaleDetail from "./pages/SaleDetail";
 import RomaneioPrint from "./pages/RomaneioPrint";
 import MyDeliveries from "./pages/MyDeliveries";
+import SalesReport from "./pages/SalesReport";
 import SignupSuccess from "./pages/SignupSuccess";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
@@ -152,6 +153,11 @@ const App = () => (
             <Route path="/minhas-entregas" element={
               <ProtectedRoute>
                 <MyDeliveries />
+              </ProtectedRoute>
+            } />
+            <Route path="/relatorios/vendas" element={
+              <ProtectedRoute>
+                <SalesReport />
               </ProtectedRoute>
             } />
             

@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Crown,
   UsersRound,
+  FileText,
   Package,
   ShoppingCart as SalesIcon,
   Truck
@@ -54,6 +55,7 @@ export function Sidebar() {
     { icon: Plus, label: 'Novo Lead', path: '/leads/new' },
     { icon: Package, label: 'Produtos', path: '/produtos' },
     { icon: SalesIcon, label: 'Vendas', path: '/vendas' },
+    { icon: FileText, label: 'Relatórios', path: '/relatorios/vendas' },
     ...(isEntregador ? [
       { icon: Truck, label: 'Minhas Entregas', path: '/minhas-entregas' },
     ] : []),
