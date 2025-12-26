@@ -109,6 +109,76 @@ export type Database = {
           },
         ]
       }
+      delivery_region_schedules: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          id: string
+          region_id: string
+          shift: Database["public"]["Enums"]["delivery_shift"]
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          id?: string
+          region_id: string
+          shift?: Database["public"]["Enums"]["delivery_shift"]
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          region_id?: string
+          shift?: Database["public"]["Enums"]["delivery_shift"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_region_schedules_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_regions: {
+        Row: {
+          assigned_user_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_user_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_user_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_regions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_coupons: {
         Row: {
           code: string
@@ -528,6 +598,7 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           created_by: string | null
+          delivery_region_id: string | null
           desired_products: string | null
           email: string | null
           followers: number | null
@@ -566,6 +637,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          delivery_region_id?: string | null
           desired_products?: string | null
           email?: string | null
           followers?: number | null
@@ -604,6 +676,7 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          delivery_region_id?: string | null
           desired_products?: string | null
           email?: string | null
           followers?: number | null
@@ -635,6 +708,13 @@ export type Database = {
           whatsapp_group?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_delivery_region_id_fkey"
+            columns: ["delivery_region_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_regions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_organization_id_fkey"
             columns: ["organization_id"]
@@ -1078,7 +1158,9 @@ export type Database = {
           created_by: string
           delivered_at: string | null
           delivery_notes: string | null
+          delivery_region_id: string | null
           delivery_status: Database["public"]["Enums"]["delivery_status"] | null
+          delivery_type: Database["public"]["Enums"]["delivery_type"]
           discount_cents: number
           discount_type: string | null
           discount_value: number | null
@@ -1095,6 +1177,12 @@ export type Database = {
           payment_method: string | null
           payment_notes: string | null
           payment_proof_url: string | null
+          scheduled_delivery_date: string | null
+          scheduled_delivery_shift:
+            | Database["public"]["Enums"]["delivery_shift"]
+            | null
+          shipping_carrier_id: string | null
+          shipping_cost_cents: number | null
           status: Database["public"]["Enums"]["sale_status"]
           subtotal_cents: number
           total_cents: number
@@ -1106,9 +1194,11 @@ export type Database = {
           created_by: string
           delivered_at?: string | null
           delivery_notes?: string | null
+          delivery_region_id?: string | null
           delivery_status?:
             | Database["public"]["Enums"]["delivery_status"]
             | null
+          delivery_type?: Database["public"]["Enums"]["delivery_type"]
           discount_cents?: number
           discount_type?: string | null
           discount_value?: number | null
@@ -1125,6 +1215,12 @@ export type Database = {
           payment_method?: string | null
           payment_notes?: string | null
           payment_proof_url?: string | null
+          scheduled_delivery_date?: string | null
+          scheduled_delivery_shift?:
+            | Database["public"]["Enums"]["delivery_shift"]
+            | null
+          shipping_carrier_id?: string | null
+          shipping_cost_cents?: number | null
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal_cents?: number
           total_cents?: number
@@ -1136,9 +1232,11 @@ export type Database = {
           created_by?: string
           delivered_at?: string | null
           delivery_notes?: string | null
+          delivery_region_id?: string | null
           delivery_status?:
             | Database["public"]["Enums"]["delivery_status"]
             | null
+          delivery_type?: Database["public"]["Enums"]["delivery_type"]
           discount_cents?: number
           discount_type?: string | null
           discount_value?: number | null
@@ -1155,12 +1253,25 @@ export type Database = {
           payment_method?: string | null
           payment_notes?: string | null
           payment_proof_url?: string | null
+          scheduled_delivery_date?: string | null
+          scheduled_delivery_shift?:
+            | Database["public"]["Enums"]["delivery_shift"]
+            | null
+          shipping_carrier_id?: string | null
+          shipping_cost_cents?: number | null
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal_cents?: number
           total_cents?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_delivery_region_id_fkey"
+            columns: ["delivery_region_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_regions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_lead_id_fkey"
             columns: ["lead_id"]
@@ -1170,6 +1281,54 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_shipping_carrier_id_fkey"
+            columns: ["shipping_carrier_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipping_carriers: {
+        Row: {
+          cost_cents: number
+          created_at: string
+          estimated_days: number
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          cost_cents?: number
+          created_at?: string
+          estimated_days?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          cost_cents?: number
+          created_at?: string
+          estimated_days?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_carriers_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -2233,6 +2392,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      delivery_shift: "morning" | "afternoon" | "full_day"
       delivery_status:
         | "pending"
         | "delivered_normal"
@@ -2247,6 +2407,7 @@ export type Database = {
         | "delivered_insufficient_address"
         | "delivered_wrong_time"
         | "delivered_other"
+      delivery_type: "pickup" | "motoboy" | "carrier"
       funnel_stage:
         | "prospect"
         | "contacted"
@@ -2408,6 +2569,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      delivery_shift: ["morning", "afternoon", "full_day"],
       delivery_status: [
         "pending",
         "delivered_normal",
@@ -2423,6 +2585,7 @@ export const Constants = {
         "delivered_wrong_time",
         "delivered_other",
       ],
+      delivery_type: ["pickup", "motoboy", "carrier"],
       funnel_stage: [
         "prospect",
         "contacted",
