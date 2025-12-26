@@ -1114,6 +1114,7 @@ export type Database = {
           contact_name: string | null
           contact_profile_pic: string | null
           created_at: string
+          current_instance_id: string | null
           customer_phone_e164: string | null
           id: string
           instance_id: string
@@ -1132,6 +1133,7 @@ export type Database = {
           contact_name?: string | null
           contact_profile_pic?: string | null
           created_at?: string
+          current_instance_id?: string | null
           customer_phone_e164?: string | null
           id?: string
           instance_id: string
@@ -1150,6 +1152,7 @@ export type Database = {
           contact_name?: string | null
           contact_profile_pic?: string | null
           created_at?: string
+          current_instance_id?: string | null
           customer_phone_e164?: string | null
           id?: string
           instance_id?: string
@@ -1168,6 +1171,20 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_current_instance_id_fkey"
+            columns: ["current_instance_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_current_instance_id_fkey"
+            columns: ["current_instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
             referencedColumns: ["id"]
           },
           {
@@ -1339,6 +1356,8 @@ export type Database = {
           media_caption: string | null
           media_url: string | null
           message_type: string
+          provider: string | null
+          provider_message_id: string | null
           status: string | null
           z_api_message_id: string | null
         }
@@ -1354,6 +1373,8 @@ export type Database = {
           media_caption?: string | null
           media_url?: string | null
           message_type?: string
+          provider?: string | null
+          provider_message_id?: string | null
           status?: string | null
           z_api_message_id?: string | null
         }
@@ -1369,6 +1390,8 @@ export type Database = {
           media_caption?: string | null
           media_url?: string | null
           message_type?: string
+          provider?: string | null
+          provider_message_id?: string | null
           status?: string | null
           z_api_message_id?: string | null
         }

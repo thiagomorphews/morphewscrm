@@ -43,6 +43,11 @@ async function safeFetch(url: string, options: RequestInit): Promise<{ res: Resp
   }
 }
 
+// Normaliza phone para só dígitos
+function normalizePhone(phone: string): string {
+  return (phone || "").replace(/\D/g, "");
+}
+
 // Map WasenderAPI status to internal status
 const mapStatus = (apiStatus: string, isConnected: boolean): string => {
   if (isConnected || apiStatus === "connected") return "connected";
