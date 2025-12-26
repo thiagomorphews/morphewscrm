@@ -51,26 +51,24 @@ async function uploadAndGetSignedUrl(
     .from(bucket)
     .upload(fileName, bytes, {
       contentType: mime,
-      upsert: false,
+      upsert: true,
     });
 
   if (up.error) {
     throw new Error(`Falha ao subir mídia no storage: ${up.error.message}`);
   }
 
-  // Always signed URL (robust even for private buckets)
+  // Prefer public URL (bucket é público no nosso setup). Fallback para signed.
+  const pub = supabaseAdmin.storage.from(bucket).getPublicUrl(fileName);
+  const publicUrl = pub?.data?.publicUrl;
+  if (publicUrl) return publicUrl;
+
   const signed = await supabaseAdmin.storage
     .from(bucket)
     .createSignedUrl(fileName, 60 * 60 * 24 * 7); // 7 days
 
   if (signed.error || !signed.data?.signedUrl) {
-    // fallback to publicUrl (if bucket is public)
-    const pub = supabaseAdmin.storage.from(bucket).getPublicUrl(fileName);
-    const publicUrl = pub?.data?.publicUrl;
-    if (!publicUrl) {
-      throw new Error("Falha ao gerar URL assinada e URL pública indisponível.");
-    }
-    return publicUrl;
+    throw new Error("Falha ao gerar URL da mídia.");
   }
 
   return signed.data.signedUrl;
