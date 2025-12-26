@@ -25,6 +25,12 @@ interface Lead {
   email: string | null;
   city: string | null;
   state: string | null;
+  street: string | null;
+  street_number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  cep: string | null;
+  delivery_region_id: string | null;
 }
 
 interface LeadSearchSelectProps {

@@ -278,6 +278,19 @@ export function useCreateSale() {
       const shippingCost = data.shipping_cost_cents || 0;
       const total_cents = subtotal_cents - discount_cents + shippingCost;
 
+      // Resolve assigned delivery user for motoboy (based on region)
+      let assignedDeliveryUserId: string | null = null;
+      if (data.delivery_type === 'motoboy' && data.delivery_region_id) {
+        const { data: region, error: regionError } = await supabase
+          .from('delivery_regions')
+          .select('assigned_user_id')
+          .eq('id', data.delivery_region_id)
+          .maybeSingle();
+
+        if (regionError) throw regionError;
+        assignedDeliveryUserId = region?.assigned_user_id ?? null;
+      }
+
       // Create sale
       const { data: sale, error: saleError } = await supabase
         .from('sales')
@@ -297,6 +310,7 @@ export function useCreateSale() {
           scheduled_delivery_shift: data.scheduled_delivery_shift || null,
           shipping_carrier_id: data.shipping_carrier_id || null,
           shipping_cost_cents: shippingCost,
+          assigned_delivery_user_id: assignedDeliveryUserId,
         })
         .select()
         .single();

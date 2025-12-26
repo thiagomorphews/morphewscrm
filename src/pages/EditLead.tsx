@@ -319,6 +319,27 @@ export default function EditLead() {
               state={formData.state}
               onFieldChange={updateField}
             />
+
+            {/* Delivery Region */}
+            <div className="space-y-2 pt-4 border-t">
+              <Label htmlFor="delivery_region">Região de Entrega (Motoboy)</Label>
+              <Select
+                value={formData.delivery_region_id}
+                onValueChange={(value) => updateField('delivery_region_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a região de entrega" />
+                </SelectTrigger>
+                <SelectContent>
+                  {deliveryRegions.filter(r => r.is_active).map((region) => (
+                    <SelectItem key={region.id} value={region.id}>
+                      {region.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Usada para entregas por motoboy</p>
+            </div>
           </div>
 
           {/* Status & Classification */}
