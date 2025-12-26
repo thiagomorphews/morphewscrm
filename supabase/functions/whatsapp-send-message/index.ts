@@ -35,7 +35,7 @@ function extFromMime(mime: string) {
   return "bin";
 }
 
-async function uploadAndGetSignedUrl(
+async function uploadAndGetPublicUrl(
   supabaseAdmin: any,
   organizationId: string,
   base64: string,
@@ -58,20 +58,38 @@ async function uploadAndGetSignedUrl(
     throw new Error(`Falha ao subir mídia no storage: ${up.error.message}`);
   }
 
-  // Prefer public URL (bucket é público no nosso setup). Fallback para signed.
+  // Get public URL from the bucket
   const pub = supabaseAdmin.storage.from(bucket).getPublicUrl(fileName);
   const publicUrl = pub?.data?.publicUrl;
-  if (publicUrl) return publicUrl;
 
-  const signed = await supabaseAdmin.storage
-    .from(bucket)
-    .createSignedUrl(fileName, 60 * 60 * 24 * 7); // 7 days
-
-  if (signed.error || !signed.data?.signedUrl) {
-    throw new Error("Falha ao gerar URL da mídia.");
+  if (publicUrl) {
+    console.log("Using public URL:", publicUrl);
+    return publicUrl;
   }
 
-  return signed.data.signedUrl;
+  // Fallback: create a proxy token for the media
+  const token = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  const { error: tokenError } = await supabaseAdmin
+    .from("whatsapp_media_tokens")
+    .insert({
+      token,
+      bucket_id: bucket,
+      object_path: fileName,
+      content_type: mime,
+      expires_at: expiresAt.toISOString(),
+    });
+
+  if (tokenError) {
+    console.error("Token creation failed:", tokenError);
+    throw new Error("Falha ao criar token de mídia.");
+  }
+
+  // Return proxy URL
+  const proxyUrl = `${SUPABASE_URL}/functions/v1/whatsapp-media-proxy?token=${token}`;
+  console.log("Using proxy URL:", proxyUrl);
+  return proxyUrl;
 }
 
 async function wasenderRequest(apiKey: string, path: string, payload: any) {
@@ -260,7 +278,7 @@ Deno.serve(async (req) => {
           : finalType === "video"
           ? "videos"
           : "docs";
-      finalMediaUrl = await uploadAndGetSignedUrl(
+      finalMediaUrl = await uploadAndGetPublicUrl(
         supabaseAdmin,
         organizationId,
         parsed.base64,
