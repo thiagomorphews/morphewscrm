@@ -37,7 +37,7 @@ import {
   DAYS_OF_WEEK,
   SHIFTS,
 } from '@/hooks/useDeliveryConfig';
-import { useTenantMembers } from '@/hooks/multi-tenant';
+import { useUsers } from '@/hooks/useUsers';
 
 interface ScheduleInput {
   day_of_week: number;
@@ -46,7 +46,7 @@ interface ScheduleInput {
 
 export function DeliveryRegionsManager() {
   const { data: regions = [], isLoading } = useDeliveryRegions();
-  const { data: teamMembers = [] } = useTenantMembers();
+  const { data: users = [] } = useUsers();
   const createRegion = useCreateDeliveryRegion();
   const updateRegion = useUpdateDeliveryRegion();
   const deleteRegion = useDeleteDeliveryRegion();
@@ -57,9 +57,6 @@ export function DeliveryRegionsManager() {
   const [assignedUserId, setAssignedUserId] = useState<string>('');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [dayShifts, setDayShifts] = useState<Record<number, 'morning' | 'afternoon' | 'full_day'>>({});
-
-  // Filter users with entregador role
-  const deliveryUsers = teamMembers.filter(u => u.role === 'entregador');
 
   const openCreateDialog = () => {
     setEditingRegion(null);
@@ -111,22 +108,26 @@ export function DeliveryRegionsManager() {
       shift: dayShifts[day] || 'full_day',
     }));
 
-    if (editingRegion) {
-      await updateRegion.mutateAsync({
-        id: editingRegion.id,
-        name: name.trim(),
-        assigned_user_id: assignedUserId || null,
-        schedules,
-      });
-    } else {
-      await createRegion.mutateAsync({
-        name: name.trim(),
-        assigned_user_id: assignedUserId || null,
-        schedules,
-      });
-    }
+    try {
+      if (editingRegion) {
+        await updateRegion.mutateAsync({
+          id: editingRegion.id,
+          name: name.trim(),
+          assigned_user_id: assignedUserId || null,
+          schedules,
+        });
+      } else {
+        await createRegion.mutateAsync({
+          name: name.trim(),
+          assigned_user_id: assignedUserId || null,
+          schedules,
+        });
+      }
 
-    setDialogOpen(false);
+      setDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving region:', error);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -236,74 +237,83 @@ export function DeliveryRegionsManager() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Nome da Região *</Label>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="region-name">Nome da Região *</Label>
               <Input
+                id="region-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Porto Alegre Centro"
-                className="mt-1"
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label>Entregador Responsável</Label>
               <Select value={assignedUserId} onValueChange={setAssignedUserId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione um entregador" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um entregador (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {deliveryUsers.map((user) => (
-                    <SelectItem key={user.user_id} value={user.user_id}>
-                      {user.profile?.first_name || 'Usuário'} {user.profile?.last_name || ''}
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {deliveryUsers.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Nenhum usuário com função "entregador" encontrado
-                </p>
-              )}
             </div>
 
-            <div>
-              <Label className="mb-3 block">Dias e Turnos de Entrega</Label>
-              <div className="space-y-3 border rounded-lg p-4">
+            <div className="space-y-3">
+              <Label>Dias e Turnos de Entrega</Label>
+              <div className="border rounded-lg p-4 space-y-4">
                 {DAYS_OF_WEEK.map((day) => (
-                  <div key={day.value} className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 w-24">
+                  <div key={day.value} className="space-y-2">
+                    <div className="flex items-center gap-3">
                       <Checkbox
                         id={`day-${day.value}`}
                         checked={selectedDays.includes(day.value)}
                         onCheckedChange={() => handleDayToggle(day.value)}
                       />
-                      <Label htmlFor={`day-${day.value}`} className="text-sm font-medium">
+                      <Label 
+                        htmlFor={`day-${day.value}`} 
+                        className="text-sm font-medium cursor-pointer"
+                      >
                         {day.label}
                       </Label>
                     </div>
                     
                     {selectedDays.includes(day.value) && (
-                      <RadioGroup
-                        value={dayShifts[day.value] || 'full_day'}
-                        onValueChange={(v) => handleShiftChange(day.value, v as any)}
-                        className="flex gap-4"
-                      >
-                        {SHIFTS.map((shift) => (
-                          <div key={shift.value} className="flex items-center gap-1">
-                            <RadioGroupItem value={shift.value} id={`${day.value}-${shift.value}`} />
-                            <Label htmlFor={`${day.value}-${shift.value}`} className="text-xs">
-                              {shift.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
+                      <div className="ml-7 pl-4 border-l-2 border-muted">
+                        <RadioGroup
+                          value={dayShifts[day.value] || 'full_day'}
+                          onValueChange={(v) => handleShiftChange(day.value, v as 'morning' | 'afternoon' | 'full_day')}
+                          className="flex flex-wrap gap-4"
+                        >
+                          {SHIFTS.map((shift) => (
+                            <div key={shift.value} className="flex items-center gap-2">
+                              <RadioGroupItem 
+                                value={shift.value} 
+                                id={`${day.value}-${shift.value}`} 
+                              />
+                              <Label 
+                                htmlFor={`${day.value}-${shift.value}`} 
+                                className="text-sm cursor-pointer"
+                              >
+                                {shift.label}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Selecione os dias em que há entrega nesta região e o turno correspondente.
+              </p>
             </div>
           </div>
 
@@ -318,7 +328,7 @@ export function DeliveryRegionsManager() {
               {(createRegion.isPending || updateRegion.isPending) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              {editingRegion ? 'Salvar' : 'Criar'}
+              {editingRegion ? 'Salvar' : 'Criar Região'}
             </Button>
           </DialogFooter>
         </DialogContent>
