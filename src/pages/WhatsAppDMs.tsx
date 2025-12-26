@@ -938,7 +938,9 @@ export default function WhatsAppDMs() {
                             size="sm"
                             onClick={() => {
                               setChangePhoneInstance(instance);
-                              setWasenderPhoneNumber("");
+                              // Pré-preenche com número existente
+                              const existingPhone = instance.phone_number?.replace(/^\+?55/, '') || "";
+                              setWasenderPhoneNumber(existingPhone);
                               setWasenderCountryCode("55");
                             }}
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
