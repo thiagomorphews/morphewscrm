@@ -35,6 +35,10 @@ interface Conversation {
   last_message_at: string | null;
   unread_count: number;
   lead_id: string | null;
+  // Campos do lead (via whatsapp_conversations_view)
+  lead_name?: string | null;
+  lead_stage?: string | null;
+
   contact_id: string | null;
   instance_id: string;
   channel_name?: string;
@@ -161,18 +165,22 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-grow textarea (min 2 linhas, max 6 linhas)
+  // Auto-grow textarea (min/max variam no mobile)
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    
+
     textarea.style.height = "auto";
+
     const lineHeight = 24; // approx line height
-    const minHeight = lineHeight * 2; // 2 linhas
-    const maxHeight = lineHeight * 6; // 6 linhas
+    const minLines = isMobile ? 3 : 2;
+    const maxLines = isMobile ? 8 : 6;
+
+    const minHeight = lineHeight * minLines;
+    const maxHeight = lineHeight * maxLines;
     const scrollHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
     textarea.style.height = `${scrollHeight}px`;
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     adjustTextareaHeight();
@@ -181,9 +189,11 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
   const sendMessage = useMutation({
     mutationFn: async (text: string) => {
       if (!selectedConversation) throw new Error("No conversation selected");
+      if (!profile?.organization_id) throw new Error("Organização não encontrada");
 
       const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
         body: {
+          organizationId: profile.organization_id,
           conversationId: selectedConversation.id,
           instanceId: selectedConversation.instance_id,
           chatId: selectedConversation.chat_id || null, // NOVO: ID estável
@@ -220,18 +230,25 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
 
   const handleSendAudio = async (base64: string, mimeType: string) => {
     if (!selectedConversation) return;
-    
+    if (!profile?.organization_id) {
+      toast({
+        title: "Erro ao enviar áudio",
+        description: "Organização não encontrada.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSendingAudio(true);
     try {
       // Enviar data URL completo - o backend vai fazer upload para storage
-      const dataUrl = base64.startsWith('data:') 
-        ? base64 
-        : `data:${mimeType};base64,${base64}`;
+      const dataUrl = base64.startsWith("data:") ? base64 : `data:${mimeType};base64,${base64}`;
 
       console.log("Sending audio, dataUrl length:", dataUrl.length, "mimeType:", mimeType);
-      
+
       const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
         body: {
+          organizationId: profile.organization_id,
           conversationId: selectedConversation.id,
           instanceId: selectedConversation.instance_id,
           chatId: selectedConversation.chat_id || null, // NOVO: ID estável
@@ -291,18 +308,27 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
 
   const handleSendImage = async () => {
     if (!selectedConversation || !selectedImage) return;
+    if (!profile?.organization_id) {
+      toast({
+        title: "Erro ao enviar imagem",
+        description: "Organização não encontrada.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSendingImage(true);
     try {
       // Enviar data URL completo - o backend vai fazer upload para storage
-      const dataUrl = selectedImage.base64.startsWith('data:') 
-        ? selectedImage.base64 
+      const dataUrl = selectedImage.base64.startsWith("data:")
+        ? selectedImage.base64
         : `data:${selectedImage.mimeType};base64,${selectedImage.base64}`;
 
       console.log("Sending image, dataUrl length:", dataUrl.length, "mimeType:", selectedImage.mimeType);
 
       const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
         body: {
+          organizationId: profile.organization_id,
           conversationId: selectedConversation.id,
           instanceId: selectedConversation.instance_id,
           chatId: selectedConversation.chat_id || null, // NOVO: ID estável
@@ -614,6 +640,49 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                   </Button>
                 </div>
               </div>
+
+              {/* Lead quick info (mobile) */}
+              {isMobile && !selectedConversation.is_group && (
+                <div className="border-t bg-background/60">
+                  <div className="px-3 py-2 flex items-center justify-between gap-3">
+                    {selectedConversation.lead_id ? (
+                      <>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {selectedConversation.lead_name || "Lead vinculado"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {selectedConversation.lead_stage ? `Etapa: ${selectedConversation.lead_stage}` : "Etapa não informada"}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={handleViewLead}
+                        >
+                          Mais informações
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">Sem lead vinculado</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => {
+                            setNewLeadName(selectedConversation.contact_name || "");
+                            setShowCreateLeadDialog(true);
+                          }}
+                        >
+                          Vincular
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Messages */}
@@ -638,6 +707,21 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
+
+            {/* Botão flutuante para voltar às conversas (mobile) */}
+            {isMobile && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={() => setSelectedConversation(null)}
+                className="fixed bottom-24 left-4 z-50 shadow-lg md:hidden"
+                aria-label="Voltar para conversas"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
+
 
             {/* Image preview */}
             {selectedImage && (
@@ -685,9 +769,9 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                     {/* Botões lado esquerdo */}
                     <div className="flex items-center shrink-0">
                       <EmojiPicker onEmojiSelect={handleEmojiSelect} />
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-9 w-9"
                         onClick={() => imageInputRef.current?.click()}
                         disabled={isSendingImage}
@@ -707,7 +791,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                         <Mic className="h-5 w-5 text-muted-foreground" />
                       </Button>
                     </div>
-                    
+
                     {/* Textarea auto-grow */}
                     <Textarea
                       ref={textareaRef}
@@ -724,12 +808,15 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                           }
                         }
                       }}
-                      className="flex-1 resize-none min-h-[48px] max-h-[144px] py-3 text-sm md:text-base"
-                      style={{ height: "48px" }}
+                      className={cn(
+                        "flex-1 resize-none py-3 text-sm md:text-base",
+                        isMobile ? "min-h-[72px] max-h-[192px]" : "min-h-[48px] max-h-[144px]"
+                      )}
+                      style={{ height: isMobile ? "72px" : "48px" }}
                       disabled={sendMessage.isPending || isSendingImage}
-                      rows={2}
+                      rows={isMobile ? 3 : 2}
                     />
-                    
+
                     {/* Botão enviar */}
                     {(selectedImage || messageText.trim()) && (
                       <Button
@@ -738,7 +825,7 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
                         onClick={selectedImage ? handleSendImage : handleSendMessage}
                         disabled={sendMessage.isPending || isSendingImage}
                       >
-                        {(sendMessage.isPending || isSendingImage) ? (
+                        {sendMessage.isPending || isSendingImage ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                           <Send className="h-5 w-5" />

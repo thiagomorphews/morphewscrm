@@ -28,11 +28,23 @@ function normalizePhoneE164(phone: string): string {
 
 function extractPhoneFromWasenderPayload(msgData: any): { conversationId: string; sendablePhone: string } {
   const remoteJid = msgData.key?.remoteJid || msgData.remoteJid || "";
+
+  // Grupo: não tentar normalizar como telefone
+  if (remoteJid.includes("@g.us")) {
+    const conversationId = remoteJid.replace("@g.us", "");
+    console.log("Phone extraction (group):", { remoteJid, conversationId });
+    return { conversationId, sendablePhone: "" };
+  }
+
   const isLidFormat = remoteJid.includes("@lid");
-  
-  let conversationId = remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "");
+
+  let conversationId = remoteJid
+    .replace("@s.whatsapp.net", "")
+    .replace("@c.us", "")
+    .replace("@lid", "");
+
   let sendablePhone = "";
-  
+
   if (msgData.key?.cleanedSenderPn) {
     sendablePhone = msgData.key.cleanedSenderPn;
   } else if (msgData.key?.senderPn) {
@@ -42,11 +54,11 @@ function extractPhoneFromWasenderPayload(msgData: any): { conversationId: string
   } else {
     sendablePhone = msgData.from?.replace("@s.whatsapp.net", "").replace("@c.us", "") || msgData.phone || "";
   }
-  
+
   sendablePhone = normalizePhoneE164(sendablePhone);
-  
+
   console.log("Phone extraction:", { remoteJid, isLidFormat, conversationId, sendablePhone });
-  
+
   return { conversationId, sendablePhone };
 }
 
@@ -283,7 +295,7 @@ async function getOrCreateConversation(
   contactName?: string,
   contactProfilePic?: string
 ) {
-  const phoneForLookup = normalizePhoneE164(sendablePhone || phoneForDisplay);
+  const phoneForLookup = isGroup ? "" : normalizePhoneE164(sendablePhone || phoneForDisplay);
   const contactId = isGroup ? null : await resolveOrCreateContact(organizationId, phoneForLookup, contactName);
   
   // Determinar display_name
@@ -339,8 +351,8 @@ async function getOrCreateConversation(
       organization_id: organizationId,
       chat_id: chatId, // Chave estável
       phone_number: phoneForDisplay,
-      sendable_phone: sendablePhone || null,
-      customer_phone_e164: phoneForLookup,
+      sendable_phone: isGroup ? null : (sendablePhone || null),
+      customer_phone_e164: isGroup ? null : phoneForLookup,
       is_group: isGroup,
       group_subject: isGroup ? groupSubject : null,
       display_name: displayName,
@@ -489,7 +501,7 @@ async function processWasenderMessage(instance: any, body: any) {
 
   // STABLE: chat_id é o remoteJid original (ex: 5511999999999@s.whatsapp.net ou 123456@g.us)
   const chatId = remoteJid; // stable key for upsert
-  const isGroupFinal = remoteJid.endsWith("@g.us");
+  const isGroupFinal = isGroup;
 
   // group subject if provided by payload
   const groupSubject =
@@ -500,15 +512,16 @@ async function processWasenderMessage(instance: any, body: any) {
     msgData?.chat?.name ||
     null;
 
-  // GRUPOS: extrair ID do grupo como "phone_number" e criar conversa normal
+  // GRUPOS: usar ID do grupo (sem @g.us) como phone_number e NÃO setar sendable_phone
   let finalPhoneForConv = phoneForConv;
   let finalSendablePhone = sendablePhone;
-  
+
   if (isGroupFinal) {
-    // Para grupos, usar o ID do grupo (sem @g.us) como identificador
-    finalPhoneForConv = remoteJid.replace("@g.us", "");
-    finalSendablePhone = finalPhoneForConv; // Grupos não têm "sendable_phone" E.164
-    console.log("Group message - ID:", finalPhoneForConv, "Name:", groupSubject || "Grupo");
+    if (remoteJid.includes("@g.us")) {
+      finalPhoneForConv = remoteJid.replace("@g.us", "");
+    }
+    finalSendablePhone = "";
+    console.log("Group message:", { remoteJid, finalPhoneForConv, groupSubject });
   }
 
   // display_name: usar subject/nome de grupo quando houver, senão contactName
@@ -516,15 +529,21 @@ async function processWasenderMessage(instance: any, body: any) {
 
   // Process media
   let processedContent = text || caption || null;
-  
+
   if (!isFromMe && (mediaUrl || base64Data)) {
     if (messageType === "image") {
       const analysis = await analyzeImage(mediaUrl || "", base64Data);
-      if (analysis) processedContent = processedContent ? `${processedContent}\n\n📸 Análise:\n${analysis}` : `📸 Análise:\n${analysis}`;
+      if (analysis)
+        processedContent = processedContent
+          ? `${processedContent}\n\n📸 Análise:\n${analysis}`
+          : `📸 Análise:\n${analysis}`;
     }
     if (messageType === "audio") {
       const transcription = await transcribeAudio(mediaUrl || "", base64Data);
-      if (transcription) processedContent = processedContent ? `${processedContent}\n\n🎤 Transcrição:\n${transcription}` : `🎤 Transcrição:\n${transcription}`;
+      if (transcription)
+        processedContent = processedContent
+          ? `${processedContent}\n\n🎤 Transcrição:\n${transcription}`
+          : `🎤 Transcrição:\n${transcription}`;
     }
   }
 

@@ -310,8 +310,11 @@ export function useSendMessage() {
       mediaBase64?: string;
       mediaUrl?: string;
     }) => {
+      const { data: tenantId } = await supabase.rpc('current_tenant_id');
+
       const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
         body: {
+          organizationId: tenantId,
           conversationId: threadId,
           instanceId,
           content,
