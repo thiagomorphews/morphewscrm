@@ -412,59 +412,81 @@ async function getOrCreateConversation(
   return newConv;
 }
 
-async function messageExists(conversationId: string, providerMessageId: string) {
-  if (!providerMessageId) return false;
-  
-  const { data } = await supabase
-    .from("whatsapp_messages")
-    .select("id")
-    .eq("conversation_id", conversationId)
-    .or(`provider_message_id.eq.${providerMessageId},z_api_message_id.eq.${providerMessageId}`)
-    .single();
-  
-  return !!data;
-}
-
-async function saveMessage(
+/**
+ * IDEMPOTÊNCIA: Upsert message por provider_message_id para evitar duplicatas
+ * Retorna mensagem existente se já existir, ou insere nova
+ */
+async function upsertMessage(
   conversationId: string,
   instanceId: string,
   content: string | null,
   direction: "inbound" | "outbound",
   messageType: string,
-  providerMessageId?: string,
+  providerMessageId: string | null,
   mediaUrl?: string,
   mediaCaption?: string,
   isFromBot = false,
   contactId?: string | null,
-  provider = "wasenderapi"
-) {
-  if (providerMessageId && await messageExists(conversationId, providerMessageId)) {
-    console.log("Message already exists, skipping:", providerMessageId);
-    return null;
+  provider = "wasenderapi",
+  participantPhone?: string | null // Quem enviou em grupos
+): Promise<{ data: any; isNew: boolean }> {
+  // Se temos provider_message_id, verificar se já existe
+  if (providerMessageId) {
+    const { data: existing, error: existingError } = await supabase
+      .from("whatsapp_messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .or(`provider_message_id.eq.${providerMessageId},z_api_message_id.eq.${providerMessageId}`)
+      .maybeSingle();
+    
+    if (existingError) {
+      console.error("❌ Error checking existing message:", existingError);
+    }
+    
+    if (existing) {
+      console.log("⚠️ Message already exists (idempotent skip):", {
+        provider_message_id: providerMessageId,
+        existing_id: existing.id
+      });
+      return { data: existing, isNew: false };
+    }
   }
+
+  // Inserir nova mensagem
+  const insertData: any = {
+    conversation_id: conversationId,
+    instance_id: instanceId,
+    content,
+    direction,
+    message_type: messageType,
+    provider,
+    provider_message_id: providerMessageId || null,
+    z_api_message_id: providerMessageId || null,
+    media_url: mediaUrl || null,
+    media_caption: mediaCaption || null,
+    is_from_bot: isFromBot,
+    status: direction === "outbound" ? "sent" : "delivered",
+    contact_id: contactId || null,
+  };
 
   const { data, error } = await supabase
     .from("whatsapp_messages")
-    .insert({
-      conversation_id: conversationId,
-      instance_id: instanceId,
-      content,
-      direction,
-      message_type: messageType,
-      provider,
-      provider_message_id: providerMessageId || null,
-      z_api_message_id: providerMessageId || null, // Compatibilidade
-      media_url: mediaUrl || null,
-      media_caption: mediaCaption || null,
-      is_from_bot: isFromBot,
-      status: direction === "outbound" ? "sent" : "delivered",
-      contact_id: contactId || null,
-    })
+    .insert(insertData)
     .select()
     .single();
 
   if (error) {
-    console.error("Error saving message:", error);
+    // Verificar se é erro de duplicidade (race condition)
+    if (error.code === "23505" && providerMessageId) {
+      console.log("⚠️ Duplicate detected via constraint, fetching existing:", providerMessageId);
+      const { data: dup } = await supabase
+        .from("whatsapp_messages")
+        .select("*")
+        .eq("provider_message_id", providerMessageId)
+        .maybeSingle();
+      if (dup) return { data: dup, isNew: false };
+    }
+    console.error("❌ Error saving message:", error);
     throw error;
   }
 
@@ -485,8 +507,16 @@ async function saveMessage(
     await supabase.from("contacts").update({ last_activity_at: new Date().toISOString() }).eq("id", contactId);
   }
 
-  console.log("Message saved:", data?.id, "provider_message_id:", providerMessageId);
-  return data;
+  console.log("✅ Message saved:", {
+    id: data?.id,
+    provider_message_id: providerMessageId,
+    conversation_id: conversationId,
+    direction,
+    type: messageType,
+    participant: participantPhone || null
+  });
+  
+  return { data, isNew: true };
 }
 
 // ============================================================================
@@ -498,15 +528,37 @@ async function processWasenderMessage(instance: any, body: any) {
   if (Array.isArray(msgData)) msgData = msgData[0];
   if (!msgData) msgData = body.data?.message || body.data;
   if (!msgData) {
-    console.log("No message data in payload");
+    console.log("❌ No message data in payload");
     return null;
   }
 
   const isFromMe = msgData.key?.fromMe === true;
+  const remoteJid = msgData.key?.remoteJid || msgData.remoteJid || "";
+  const messageId = msgData.key?.id || msgData.id || msgData.messageId || "";
+  
+  // =========================================================================
+  // GRUPO: Identificar por @g.us e extrair participant
+  // =========================================================================
+  const isGroup = remoteJid.endsWith("@g.us") || msgData.isGroup === true;
+  const groupSubject = msgData.groupSubject || msgData.group?.name || msgData.groupName || "";
+  
+  // Em grupos, participant é quem enviou a mensagem
+  let participantPhone: string | null = null;
+  if (isGroup) {
+    const participantJid = msgData.key?.participant || msgData.participant || "";
+    participantPhone = participantJid
+      .replace("@s.whatsapp.net", "")
+      .replace("@c.us", "")
+      .replace("@lid", "");
+    if (participantPhone) {
+      participantPhone = normalizePhoneE164(participantPhone);
+    }
+  }
+  
   const { conversationId: phoneForConv, sendablePhone } = extractPhoneFromWasenderPayload(msgData);
   
-  if (!phoneForConv && !sendablePhone) {
-    console.log("No phone number in message");
+  if (!phoneForConv && !sendablePhone && !isGroup) {
+    console.log("❌ No phone number in message");
     return null;
   }
   
@@ -514,9 +566,6 @@ async function processWasenderMessage(instance: any, body: any) {
              msgData.message?.conversation || msgData.message?.extendedTextMessage?.text ||
              msgData.message?.imageMessage?.caption || msgData.message?.videoMessage?.caption || "";
   
-  const messageId = msgData.key?.id || msgData.id || msgData.messageId || "";
-  const remoteJid = msgData.key?.remoteJid || msgData.remoteJid || "";
-  const isGroup = remoteJid.includes("@g.us") || msgData.isGroup || false;
   const senderName = msgData.pushName || msgData.senderName || msgData.name || "";
   
   let messageType = "text";
@@ -531,7 +580,21 @@ async function processWasenderMessage(instance: any, body: any) {
                  msgData.message?.documentMessage?.url || null;
                  
   const mediaBase64 = msgData.base64 || msgData.data?.base64 || null;
-  const groupSubject = msgData.groupSubject || msgData.group?.name || "";
+  
+  // =========================================================================
+  // LOG: Observabilidade detalhada
+  // =========================================================================
+  console.log("📩 Processing Wasender message:", {
+    instance_id: instance.id,
+    remoteJid,
+    provider_message_id: messageId,
+    is_group: isGroup,
+    group_subject: groupSubject || null,
+    participant: participantPhone,
+    message_type: messageType,
+    from_me: isFromMe,
+    sender_name: senderName
+  });
   
   // Get or create conversation using stable chat_id
   const conversation = await getOrCreateConversation(
@@ -560,26 +623,30 @@ async function processWasenderMessage(instance: any, body: any) {
     }
   }
   
-  // Save message
-  const savedMessage = await saveMessage(
+  // =========================================================================
+  // IDEMPOTÊNCIA: Upsert message (não duplica)
+  // =========================================================================
+  const { data: savedMessage, isNew } = await upsertMessage(
     conversation.id,
     instance.id,
     text || null,
     isFromMe ? "outbound" : "inbound",
     messageType,
-    messageId,
+    messageId || null,
     mediaUrl,
     msgData.message?.imageMessage?.caption || msgData.message?.videoMessage?.caption || null,
     false,
-    conversation.contact_id
+    conversation.contact_id,
+    "wasenderapi",
+    participantPhone
   );
   
-  if (!savedMessage) {
-    console.log("Message not saved (duplicate or error)");
-    return null;
+  if (!isNew) {
+    console.log("⏭️ Message skipped (duplicate):", messageId);
+    return savedMessage;
   }
   
-  // Bot AI response (if enabled and inbound)
+  // Bot AI response (if enabled and inbound and NOT group)
   if (!isFromMe && !isGroup) {
     const { data: botConfig } = await supabase
       .from("whatsapp_bot_configs")
@@ -593,12 +660,16 @@ async function processWasenderMessage(instance: any, body: any) {
       
       if (aiResponse && botConfig.supervisor_mode === false) {
         // TODO: Send AI response via Wasender API
-        console.log("AI response generated:", aiResponse.substring(0, 100));
+        console.log("🤖 AI response generated:", aiResponse.substring(0, 100));
       }
     }
   }
   
-  console.log("Message processed successfully:", savedMessage.id);
+  console.log("✅ Message processed successfully:", {
+    id: savedMessage.id,
+    provider_message_id: messageId,
+    is_group: isGroup
+  });
   return savedMessage;
 }
 
@@ -610,13 +681,30 @@ async function processZapiMessage(instance: any, body: any) {
   const messageId = msgData.messageId || msgData.id || "";
   const isFromMe = msgData.isFromMe === true;
   const isGroup = msgData.isGroup === true;
+  const groupSubject = msgData.chatName || msgData.groupName || "";
+  
+  // Participant em grupos
+  let participantPhone: string | null = null;
+  if (isGroup && msgData.participantPhone) {
+    participantPhone = normalizePhoneE164(msgData.participantPhone);
+  }
   
   if (!phone) {
-    console.log("No phone in Z-API message");
+    console.log("❌ No phone in Z-API message");
     return null;
   }
   
   const remoteJid = isGroup ? `${phone}@g.us` : `${phone}@s.whatsapp.net`;
+  
+  console.log("📩 Processing Z-API message:", {
+    instance_id: instance.id,
+    remoteJid,
+    provider_message_id: messageId,
+    is_group: isGroup,
+    group_subject: groupSubject || null,
+    participant: participantPhone,
+    from_me: isFromMe
+  });
   
   const conversation = await getOrCreateConversation(
     instance.id,
@@ -625,7 +713,7 @@ async function processZapiMessage(instance: any, body: any) {
     phone,
     phone,
     isGroup,
-    msgData.chatName || undefined,
+    isGroup ? groupSubject : undefined,
     msgData.senderName || undefined
   );
   
@@ -638,21 +726,27 @@ async function processZapiMessage(instance: any, body: any) {
   const mediaUrl = msgData.image?.imageUrl || msgData.audio?.audioUrl || 
                    msgData.video?.videoUrl || msgData.document?.documentUrl || null;
   
-  const savedMessage = await saveMessage(
+  const { data: savedMessage, isNew } = await upsertMessage(
     conversation.id,
     instance.id,
     text || null,
     isFromMe ? "outbound" : "inbound",
     messageType,
-    messageId,
+    messageId || null,
     mediaUrl,
     msgData.image?.caption || msgData.video?.caption || null,
     false,
     conversation.contact_id,
-    "zapi"
+    "zapi",
+    participantPhone
   );
   
-  console.log("Z-API message processed:", savedMessage?.id);
+  console.log("✅ Z-API message processed:", {
+    id: savedMessage?.id,
+    provider_message_id: messageId,
+    is_new: isNew,
+    is_group: isGroup
+  });
   return savedMessage;
 }
 
