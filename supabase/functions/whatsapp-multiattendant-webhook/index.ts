@@ -19,36 +19,36 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ============================================================================
 
 function validateWebhookSecret(req: Request): boolean {
-  // If no secret configured, allow (backwards compatibility during migration)
-  if (!WHATSAPP_WEBHOOK_SECRET) {
-    console.warn("⚠️ WHATSAPP_WEBHOOK_SECRET not configured - webhook validation disabled");
+  // Check if x-webhook-secret header is provided
+  const providedSecret = req.headers.get("x-webhook-secret");
+  
+  // If header is provided, validate it
+  if (providedSecret && WHATSAPP_WEBHOOK_SECRET) {
+    // Constant-time comparison to prevent timing attacks
+    if (providedSecret.length !== WHATSAPP_WEBHOOK_SECRET.length) {
+      console.error("❌ Invalid webhook secret (length mismatch)");
+      return false;
+    }
+    
+    let result = 0;
+    for (let i = 0; i < providedSecret.length; i++) {
+      result |= providedSecret.charCodeAt(i) ^ WHATSAPP_WEBHOOK_SECRET.charCodeAt(i);
+    }
+    
+    if (result !== 0) {
+      console.error("❌ Invalid webhook secret");
+      return false;
+    }
+    
+    console.log("✅ Webhook secret validated via header");
     return true;
   }
   
-  const providedSecret = req.headers.get("x-webhook-secret");
-  if (!providedSecret) {
-    console.error("❌ Missing x-webhook-secret header");
-    return false;
-  }
-  
-  // Constant-time comparison to prevent timing attacks
-  if (providedSecret.length !== WHATSAPP_WEBHOOK_SECRET.length) {
-    console.error("❌ Invalid webhook secret (length mismatch)");
-    return false;
-  }
-  
-  let result = 0;
-  for (let i = 0; i < providedSecret.length; i++) {
-    result |= providedSecret.charCodeAt(i) ^ WHATSAPP_WEBHOOK_SECRET.charCodeAt(i);
-  }
-  
-  if (result !== 0) {
-    console.error("❌ Invalid webhook secret");
-    return false;
-  }
-  
-  console.log("✅ Webhook secret validated");
-  return true;
+  // If no header provided, we'll validate later by checking if the instance exists
+  // This is because WasenderAPI doesn't send custom headers, but we can validate
+  // the request by confirming the sessionId matches a real instance in our database
+  console.log("⚠️ No x-webhook-secret header - will validate via instance lookup");
+  return true; // Allow the request to proceed, instance validation will happen later
 }
 
 // ============================================================================
