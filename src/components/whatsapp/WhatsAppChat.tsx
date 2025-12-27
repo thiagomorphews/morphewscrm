@@ -244,14 +244,20 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
       // Enviar data URL completo - o backend vai fazer upload para storage
       const dataUrl = base64.startsWith("data:") ? base64 : `data:${mimeType};base64,${base64}`;
 
-      console.log("Sending audio, dataUrl length:", dataUrl.length, "mimeType:", mimeType);
+      console.log("[WhatsApp] Enviando áudio:", {
+        conversation_id: selectedConversation.id,
+        instance_id: selectedConversation.instance_id,
+        message_type: "audio",
+        mime_type: mimeType,
+        data_length: dataUrl.length,
+      });
 
       const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
         body: {
           organizationId: profile.organization_id,
           conversationId: selectedConversation.id,
           instanceId: selectedConversation.instance_id,
-          chatId: selectedConversation.chat_id || null, // NOVO: ID estável
+          chatId: selectedConversation.chat_id || null,
           phone: selectedConversation.phone_number,
           content: "",
           messageType: "audio",
@@ -260,18 +266,31 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.success) throw new Error("Falha ao enviar áudio");
+      if (error) {
+        console.error("[WhatsApp] Edge function error:", error);
+        throw new Error(error.message || "Erro na função de envio");
+      }
+      
+      if (data?.error) {
+        console.error("[WhatsApp] API error:", data.error);
+        throw new Error(data.error);
+      }
+      
+      if (!data?.success) {
+        console.error("[WhatsApp] Send failed:", data);
+        throw new Error(data?.error || "Falha ao enviar áudio para o WhatsApp");
+      }
 
+      console.log("[WhatsApp] Áudio enviado com sucesso:", data?.providerMessageId);
       queryClient.invalidateQueries({ queryKey: ["whatsapp-messages"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations-org"] });
       toast({ title: "Áudio enviado!" });
     } catch (error: any) {
-      console.error("Error sending audio:", error);
+      console.error("[WhatsApp] Error sending audio:", error);
+      const errorMessage = error.message || "Erro desconhecido ao enviar áudio";
       toast({
         title: "Erro ao enviar áudio",
-        description: error.message || "Erro desconhecido",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -324,14 +343,21 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
         ? selectedImage.base64
         : `data:${selectedImage.mimeType};base64,${selectedImage.base64}`;
 
-      console.log("Sending image, dataUrl length:", dataUrl.length, "mimeType:", selectedImage.mimeType);
+      console.log("[WhatsApp] Enviando imagem:", {
+        conversation_id: selectedConversation.id,
+        instance_id: selectedConversation.instance_id,
+        message_type: "image",
+        mime_type: selectedImage.mimeType,
+        data_length: dataUrl.length,
+        has_caption: !!messageText,
+      });
 
       const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
         body: {
           organizationId: profile.organization_id,
           conversationId: selectedConversation.id,
           instanceId: selectedConversation.instance_id,
-          chatId: selectedConversation.chat_id || null, // NOVO: ID estável
+          chatId: selectedConversation.chat_id || null,
           phone: selectedConversation.phone_number,
           content: messageText || "",
           messageType: "image",
@@ -340,20 +366,33 @@ export function WhatsAppChat({ instanceId, onBack }: WhatsAppChatProps) {
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.success) throw new Error("Falha ao enviar imagem");
+      if (error) {
+        console.error("[WhatsApp] Edge function error:", error);
+        throw new Error(error.message || "Erro na função de envio");
+      }
+      
+      if (data?.error) {
+        console.error("[WhatsApp] API error:", data.error);
+        throw new Error(data.error);
+      }
+      
+      if (!data?.success) {
+        console.error("[WhatsApp] Send failed:", data);
+        throw new Error(data?.error || "Falha ao enviar imagem para o WhatsApp");
+      }
 
+      console.log("[WhatsApp] Imagem enviada com sucesso:", data?.providerMessageId);
       setSelectedImage(null);
       setMessageText("");
       queryClient.invalidateQueries({ queryKey: ["whatsapp-messages"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations-org"] });
       toast({ title: "Imagem enviada!" });
     } catch (error: any) {
-      console.error("Error sending image:", error);
+      console.error("[WhatsApp] Error sending image:", error);
+      const errorMessage = error.message || "Erro desconhecido ao enviar imagem";
       toast({
         title: "Erro ao enviar imagem",
-        description: error.message || "Erro desconhecido",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
