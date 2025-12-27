@@ -160,7 +160,15 @@ async function uploadMediaAndGetProxyUrl(
 // ============================================================================
 
 async function wasenderRequest(apiKey: string, path: string, payload: any) {
-  console.log("📡 Wasender request:", { path, to: payload.to, hasMedia: !!payload.imageUrl || !!payload.audioUrl || !!payload.documentUrl || !!payload.videoUrl });
+  console.log("📡 Wasender request:", { 
+    path, 
+    to: payload.to, 
+    hasText: !!payload.text,
+    hasImageUrl: !!payload.imageUrl,
+    hasAudioUrl: !!payload.audioUrl,
+    hasVideoUrl: !!payload.videoUrl,
+    hasDocumentUrl: !!payload.documentUrl
+  });
   
   const res = await fetch(`${WASENDER_BASE}${path}`, {
     method: "POST",
@@ -184,13 +192,28 @@ async function wasenderRequest(apiKey: string, path: string, payload: any) {
     status: res.status, 
     ok: res.ok, 
     success: json?.success,
-    error: json?.error || json?.message 
+    error: json?.error || json?.message,
+    data: json?.data
   });
 
   return { ok: res.ok, status: res.status, json };
 }
 
-async function sendWithFallbacks(params: {
+/**
+ * Send message via Wasender API following their official documentation
+ * All message types use POST /api/send-message with specific parameters
+ * 
+ * Documentation: https://wasenderapi.com/api-docs/messages/
+ * 
+ * Parameters:
+ * - to: Recipient phone number in E.164 format, Group JID (xxx@g.us), or Community Channel JID
+ * - text: Text content (required for text messages, optional caption for media)
+ * - imageUrl: URL of image (JPEG, PNG) - max 5MB
+ * - audioUrl: URL of audio (AAC, MP3, OGG, AMR) - max 16MB - sent as voice note
+ * - videoUrl: URL of video (MP4) - max 16MB
+ * - documentUrl: URL of document (PDF, etc) - max 16MB
+ */
+async function sendWasenderMessage(params: {
   apiKey: string;
   to: string;
   type: "text" | "image" | "audio" | "document" | "video";
@@ -199,98 +222,67 @@ async function sendWithFallbacks(params: {
 }) {
   const { apiKey, to, type, text, mediaUrl } = params;
 
-  const attempts: Array<{ path: string; payload: any }> = [];
+  // Build payload following Wasender official documentation
+  // All types use the same endpoint: POST /api/send-message
+  const payload: Record<string, any> = { to };
 
-  if (type === "text") {
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, text: text ?? "" },
-    });
+  switch (type) {
+    case "text":
+      // Text message: requires "text" field
+      payload.text = text ?? "";
+      break;
+      
+    case "image":
+      // Image message: requires "imageUrl", optional "text" as caption
+      payload.imageUrl = mediaUrl;
+      if (text) payload.text = text;
+      break;
+      
+    case "audio":
+      // Audio message: requires "audioUrl" (sent as voice note)
+      payload.audioUrl = mediaUrl;
+      break;
+      
+    case "video":
+      // Video message: requires "videoUrl", optional "text" as caption  
+      payload.videoUrl = mediaUrl;
+      if (text) payload.text = text;
+      break;
+      
+    case "document":
+      // Document message: requires "documentUrl", optional "text" as caption
+      payload.documentUrl = mediaUrl;
+      if (text) payload.text = text;
+      break;
   }
 
-  if (type === "image") {
-    // Try different field names for image URL
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, text: text ?? "", imageUrl: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, caption: text ?? "", image: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-image",
-      payload: { to, imageUrl: mediaUrl, caption: text ?? "" },
-    });
-    attempts.push({
-      path: "/api/send-image",
-      payload: { to, image: mediaUrl, caption: text ?? "" },
-    });
+  console.log("📤 Sending to Wasender:", {
+    type,
+    to: to.substring(0, 20) + "...",
+    hasText: !!payload.text,
+    hasMedia: !!mediaUrl,
+    payload_keys: Object.keys(payload)
+  });
+
+  const result = await wasenderRequest(apiKey, "/api/send-message", payload);
+  
+  if (result.ok && result.json?.success) {
+    // Extract message ID from response
+    const providerMessageId = 
+      result.json?.data?.msgId?.toString() || 
+      result.json?.data?.id || 
+      result.json?.data?.messageId || 
+      result.json?.data?.key?.id || 
+      null;
+      
+    console.log("✅ Wasender success:", { providerMessageId });
+    return { success: true, providerMessageId, raw: result.json };
   }
 
-  if (type === "audio") {
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, audioUrl: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, audio: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-audio",
-      payload: { to, audioUrl: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-audio",
-      payload: { to, audio: mediaUrl },
-    });
-  }
-
-  if (type === "video") {
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, text: text ?? "", videoUrl: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, caption: text ?? "", video: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-video",
-      payload: { to, videoUrl: mediaUrl, caption: text ?? "" },
-    });
-  }
-
-  if (type === "document") {
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, text: text ?? "", documentUrl: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-message",
-      payload: { to, caption: text ?? "", document: mediaUrl },
-    });
-    attempts.push({
-      path: "/api/send-document",
-      payload: { to, documentUrl: mediaUrl, caption: text ?? "" },
-    });
-  }
-
-  let lastErr = "Falha ao enviar mensagem.";
-  for (const a of attempts) {
-    const r = await wasenderRequest(apiKey, a.path, a.payload);
-    if (r.ok && r.json?.success) {
-      const providerMessageId =
-        r.json?.data?.id || r.json?.data?.messageId || r.json?.data?.key?.id || null;
-      return { success: true, providerMessageId, raw: r.json };
-    }
-
-    const msg = r.json?.message || r.json?.error || r.json?.raw || `HTTP ${r.status}`;
-    lastErr = `${a.path}: ${msg}`;
-  }
-
-  return { success: false, providerMessageId: null, error: lastErr };
+  // Handle error
+  const errorMsg = result.json?.message || result.json?.error || result.json?.raw || `HTTP ${result.status}`;
+  console.error("❌ Wasender error:", errorMsg);
+  return { success: false, providerMessageId: null, error: errorMsg };
 }
 
 // ============================================================================
@@ -422,7 +414,7 @@ Deno.serve(async (req) => {
     // Send message via Wasender
     console.log(`[${requestId}] 📤 Sending ${finalType} message to Wasender...`);
     
-    const sendResult = await sendWithFallbacks({
+    const sendResult = await sendWasenderMessage({
       apiKey: instance.wasender_api_key,
       to,
       type: finalType,
