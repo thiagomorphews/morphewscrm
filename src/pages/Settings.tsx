@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Instagram, Bell, Tag, Plus, X, Loader2, Lock, Eye, EyeOff, Save, Filter, ShieldAlert, MapPin, Truck } from 'lucide-react';
+import { Instagram, Bell, Tag, Plus, X, Loader2, Lock, Eye, EyeOff, Save, Filter, ShieldAlert, MapPin, Truck, CreditCard } from 'lucide-react';
 import { useLeadSources, useCreateLeadSource, useDeleteLeadSource } from '@/hooks/useConfigOptions';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,8 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { FunnelStagesManager } from '@/components/settings/FunnelStagesManager';
 import { DeliveryRegionsManager } from '@/components/settings/DeliveryRegionsManager';
 import { ShippingCarriersManager } from '@/components/settings/ShippingCarriersManager';
+import { PaymentMethodsManager } from '@/components/settings/PaymentMethodsManager';
 import { useOrgAdmin } from '@/hooks/useOrgAdmin';
-
 export default function Settings() {
   const { profile, updatePassword, user } = useAuth();
   const { data: isOrgAdmin, isLoading: loadingPermissions } = useOrgAdmin();
@@ -319,6 +319,20 @@ export default function Settings() {
             </div>
           </div>
           <ShippingCarriersManager />
+        </div>
+
+        {/* Payment Methods */}
+        <div className="bg-card rounded-xl p-6 shadow-card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 rounded-lg bg-purple-500/10">
+              <CreditCard className="w-6 h-6 text-purple-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Formas de Pagamento</h2>
+              <p className="text-sm text-muted-foreground">Configure as formas de pagamento disponíveis</p>
+            </div>
+          </div>
+          <PaymentMethodsManager />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

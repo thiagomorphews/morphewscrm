@@ -988,6 +988,68 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          created_at: string
+          destination_bank: string | null
+          destination_cnpj: string | null
+          display_order: number | null
+          fee_percentage: number | null
+          id: string
+          is_active: boolean | null
+          max_installments: number | null
+          min_installment_value_cents: number | null
+          name: string
+          organization_id: string
+          payment_timing: string
+          requires_proof: boolean | null
+          settlement_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          destination_bank?: string | null
+          destination_cnpj?: string | null
+          display_order?: number | null
+          fee_percentage?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_installments?: number | null
+          min_installment_value_cents?: number | null
+          name: string
+          organization_id: string
+          payment_timing?: string
+          requires_proof?: boolean | null
+          settlement_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          destination_bank?: string | null
+          destination_cnpj?: string | null
+          display_order?: number | null
+          fee_percentage?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_installments?: number | null
+          min_installment_value_cents?: number | null
+          name?: string
+          organization_id?: string
+          payment_timing?: string
+          requires_proof?: boolean | null
+          settlement_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
