@@ -39,10 +39,42 @@ async function createHmacSignature(data: string, secret: string): Promise<string
 }
 
 /**
- * Generate a secure HMAC-signed token for media proxy access.
+ * Generate a PUBLIC SIGNED URL directly from Supabase Storage.
+ * This is more reliable for WhatsApp delivery as it bypasses the proxy.
  *
  * IMPORTANT: WhatsApp recipients may download media minutes/hours later, so we default to a longer
  * expiration (7 days) to avoid "mídia não disponível".
+ */
+async function generateSignedStorageUrl(
+  supabaseAdmin: any,
+  storagePath: string,
+  expiresInSeconds = 60 * 60 * 24 * 7
+): Promise<string> {
+  const bucket = "whatsapp-media";
+  
+  console.log("🔗 Generating signed URL:", { path: storagePath, expiresIn: expiresInSeconds });
+  
+  const { data, error } = await supabaseAdmin.storage
+    .from(bucket)
+    .createSignedUrl(storagePath, expiresInSeconds);
+    
+  if (error) {
+    console.error("❌ Failed to generate signed URL:", error);
+    throw new Error(`Falha ao gerar URL assinada: ${error.message}`);
+  }
+  
+  console.log("✅ Generated signed URL:", {
+    path: storagePath,
+    expiresIn: expiresInSeconds,
+    url: data.signedUrl.substring(0, 80) + "..."
+  });
+  
+  return data.signedUrl;
+}
+
+/**
+ * Generate a secure HMAC-signed token for media proxy access (fallback).
+ * Used for internal display in the CRM UI.
  */
 async function generateMediaProxyUrl(
   storagePath: string,
@@ -55,8 +87,6 @@ async function generateMediaProxyUrl(
     );
   }
 
-  // Prefer calling the public backend function URL directly (works both for browser and WhatsApp recipients).
-  // Fallback to PUBLIC_APP_URL only if SUPABASE_URL is missing.
   if (!SUPABASE_URL && !PUBLIC_APP_URL) {
     throw new Error(
       "SUPABASE_URL/PUBLIC_APP_URL não configurado - impossível gerar URL do proxy"
@@ -65,7 +95,6 @@ async function generateMediaProxyUrl(
 
   const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
 
-  // v2 signature includes content-type (prevents tampering when we pass ct)
   const ct = contentType?.trim() || "";
   const dataToSign = ct ? `${storagePath}:${exp}:${ct}` : `${storagePath}:${exp}`;
   const token = await createHmacSignature(dataToSign, WHATSAPP_MEDIA_TOKEN_SECRET);
@@ -73,21 +102,18 @@ async function generateMediaProxyUrl(
   const supabaseBase = SUPABASE_URL ? SUPABASE_URL.replace(/\/$/, "") : "";
   const publicBase = PUBLIC_APP_URL ? PUBLIC_APP_URL.replace(/\/$/, "") : "";
 
-  // Primary: public function endpoint
   const proxyBaseUrl = supabaseBase
     ? `${supabaseBase}/functions/v1/whatsapp-media-proxy`
     : `${publicBase}/api/whatsapp/media`;
 
   const ctParam = ct ? `&ct=${encodeURIComponent(ct)}` : "";
 
-  // Build proxy URL with querystring
   const proxyUrl = `${proxyBaseUrl}?path=${encodeURIComponent(storagePath)}&exp=${exp}&token=${token}${ctParam}`;
 
-  console.log("✅ Generated secure proxy URL:", {
+  console.log("✅ Generated proxy URL:", {
     path: storagePath,
     expiresAt: new Date(exp * 1000).toISOString(),
     contentType: ct || undefined,
-    proxyUrl: proxyUrl.substring(0, 100) + "...",
   });
 
   return proxyUrl;
@@ -124,28 +150,26 @@ function extFromMime(mime: string): string {
 }
 
 /**
- * Upload media to PRIVATE storage and return secure proxy URL
+ * Upload media to storage and return both signed URL (for Wasender) and proxy URL (for UI)
  * Path structure: orgs/{organization_id}/instances/{instance_id}/{conversation_id}/{timestamp}_{random}.{ext}
- * NEVER uses getPublicUrl() - always proxy with HMAC token
  */
-async function uploadMediaAndGetProxyUrl(
+async function uploadMediaAndGetUrls(
   supabaseAdmin: any,
   organizationId: string,
   instanceId: string,
   conversationId: string,
   base64: string,
   mime: string
-): Promise<string> {
+): Promise<{ signedUrl: string; proxyUrl: string; storagePath: string }> {
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const ext = extFromMime(mime);
   const timestamp = Date.now();
-  const random = crypto.randomUUID().split('-')[0]; // Short random string
+  const random = crypto.randomUUID().split('-')[0];
   
-  // Structured path for organization/tenant isolation
   const storagePath = `orgs/${organizationId}/instances/${instanceId}/${conversationId}/${timestamp}_${random}.${ext}`;
   const bucket = "whatsapp-media";
 
-  console.log("📤 Uploading media to private storage:", {
+  console.log("📤 Uploading media to storage:", {
     organization_id: organizationId,
     instance_id: instanceId,
     conversation_id: conversationId,
@@ -154,7 +178,6 @@ async function uploadMediaAndGetProxyUrl(
     size_bytes: bytes.length
   });
 
-  // Upload to PRIVATE bucket
   const { error: uploadError } = await supabaseAdmin.storage
     .from(bucket)
     .upload(storagePath, bytes, {
@@ -169,11 +192,13 @@ async function uploadMediaAndGetProxyUrl(
 
   console.log("✅ Media uploaded successfully:", storagePath);
 
-  // Generate secure proxy URL (NEVER use getPublicUrl)
-  // Use original mime so the proxy serves the correct Content-Type (important for audio)
+  // Generate SIGNED URL for WhatsApp delivery (works better with Wasender)
+  const signedUrl = await generateSignedStorageUrl(supabaseAdmin, storagePath, 60 * 60 * 24 * 7);
+  
+  // Generate proxy URL for UI display
   const proxyUrl = await generateMediaProxyUrl(storagePath, 60 * 60 * 24 * 7, mime);
 
-  return proxyUrl;
+  return { signedUrl, proxyUrl, storagePath };
 }
 
 // ============================================================================
@@ -415,6 +440,7 @@ Deno.serve(async (req) => {
 
     // Process media if present
     let finalMediaUrl: string | null = null;
+    let finalMediaUrlForDb: string | null = null; // URL for saving in DB (proxy URL for UI display)
     let finalType: "text" | "image" | "audio" | "document" | "video" =
       (messageType as any) || "text";
     let text = (content ?? "").toString();
@@ -432,21 +458,23 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Gerar URL segura via proxy
-      // Se o client informar mediaMimeType, repassamos para servir Content-Type correto (especialmente áudio)
-      finalMediaUrl = await generateMediaProxyUrl(
+      // Generate SIGNED URL for WhatsApp delivery (more reliable than proxy)
+      finalMediaUrl = await generateSignedStorageUrl(supabaseAdmin, mediaStoragePath, 60 * 60 * 24 * 7);
+      
+      // Generate proxy URL for UI display
+      finalMediaUrlForDb = await generateMediaProxyUrl(
         mediaStoragePath,
         60 * 60 * 24 * 7,
         typeof mediaMimeType === "string" ? mediaMimeType : undefined
       );
       console.log(`[${requestId}] ✅ Media ready for sending via storage path`);
     } else if (mediaUrl && isDataUrl(mediaUrl)) {
-      console.log(`[${requestId}] 📎 Processing media attachment (data URL - legacy mode)`);
+      console.log(`[${requestId}] 📎 Processing media attachment (data URL)`);
 
       const parsed = parseDataUrl(mediaUrl);
 
-      // Upload to PRIVATE storage and get secure proxy URL
-      finalMediaUrl = await uploadMediaAndGetProxyUrl(
+      // Upload to storage and get both signed URL (for Wasender) and proxy URL (for UI)
+      const { signedUrl, proxyUrl } = await uploadMediaAndGetUrls(
         supabaseAdmin,
         organizationId,
         instanceId,
@@ -454,16 +482,25 @@ Deno.serve(async (req) => {
         parsed.base64,
         parsed.mime
       );
+      
+      // Use signed URL for Wasender (more reliable for WhatsApp delivery)
+      finalMediaUrl = signedUrl;
+      // Use proxy URL for DB storage (for UI display)
+      finalMediaUrlForDb = proxyUrl;
 
-      console.log(`[${requestId}] ✅ Media ready for sending via proxy`);
+      console.log(`[${requestId}] ✅ Media ready for sending via signed URL`);
     } else if (mediaUrl && typeof mediaUrl === "string" && mediaUrl.startsWith("http")) {
       // External URL - use as-is (user's responsibility)
       console.log(`[${requestId}] 📎 Using external media URL`);
       finalMediaUrl = mediaUrl;
+      finalMediaUrlForDb = mediaUrl;
     }
 
     // Send message via Wasender
-    console.log(`[${requestId}] 📤 Sending ${finalType} message to Wasender...`);
+    console.log(`[${requestId}] 📤 Sending ${finalType} message to Wasender...`, {
+      to: to.substring(0, 20) + "...",
+      mediaUrl: finalMediaUrl ? finalMediaUrl.substring(0, 60) + "..." : null
+    });
 
     const sendResult = await sendWasenderMessage({
       apiKey: instance.wasender_api_key,
@@ -480,6 +517,7 @@ Deno.serve(async (req) => {
     });
 
     // Save message to database (always, to preserve history)
+    // Use proxy URL for database so UI can display it
     const { data: savedMessage, error: saveError } = await supabaseAdmin
       .from("whatsapp_messages")
       .insert({
@@ -488,7 +526,7 @@ Deno.serve(async (req) => {
         content: finalType === "text" ? text : (mediaCaption ?? text ?? ""),
         direction: "outbound",
         message_type: finalType,
-        media_url: finalMediaUrl,
+        media_url: finalMediaUrlForDb || finalMediaUrl,
         media_caption: mediaCaption ?? null,
         provider: "wasenderapi",
         provider_message_id: sendResult.providerMessageId,

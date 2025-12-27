@@ -158,38 +158,47 @@ export default function WhatsAppChat() {
   // Fetch conversations for selected instance
   useEffect(() => {
     const fetchConversations = async () => {
-      if (!selectedInstance) return;
+      if (!selectedInstance || !profile?.organization_id) return;
       
+      // Busca por organization_id ao invés de instance_id para ver conversas de todas as instâncias
       const { data, error } = await supabase
         .from('whatsapp_conversations')
         .select('*')
-        .eq('instance_id', selectedInstance)
+        .eq('organization_id', profile.organization_id)
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (!error && data) {
-        setConversations(data);
+        // Filtrar pela instância selecionada ou mostrar todas se current_instance_id
+        const filtered = data.filter(c => 
+          c.instance_id === selectedInstance || 
+          c.current_instance_id === selectedInstance
+        );
+        setConversations(filtered);
       }
     };
 
     fetchConversations();
     
-    // Realtime subscription
+    // Realtime subscription - escuta por organization_id para pegar todas as atualizações
     const channel = supabase
-      .channel('conversations-changes')
+      .channel('conversations-realtime')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'whatsapp_conversations',
-        filter: `instance_id=eq.${selectedInstance}`
-      }, () => {
+      }, (payload) => {
+        console.log('[Realtime] Conversation update:', payload);
+        // Refetch ao receber qualquer mudança
         fetchConversations();
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Conversations subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedInstance]);
+  }, [selectedInstance, profile?.organization_id]);
 
   // Fetch messages for selected conversation
   const fetchMessages = useCallback(async () => {
@@ -217,19 +226,21 @@ export default function WhatsAppChat() {
     fetchMessages();
 
     if (selectedConversation) {
-      // Realtime for messages
+      // Realtime for messages - escuta todos os eventos
       const channel = supabase
-        .channel(`messages-${selectedConversation.id}`)
+        .channel(`messages-realtime-${selectedConversation.id}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
           table: 'whatsapp_messages',
           filter: `conversation_id=eq.${selectedConversation.id}`
         }, (payload) => {
+          console.log('[Realtime] New message:', payload);
           setMessages(prev => {
-            const exists = prev.some(m => m.id === (payload.new as Message).id);
+            const newMsg = payload.new as Message;
+            const exists = prev.some(m => m.id === newMsg.id);
             if (exists) return prev;
-            return [...prev, payload.new as Message];
+            return [...prev, newMsg];
           });
         })
         .on('postgres_changes', {
@@ -238,13 +249,16 @@ export default function WhatsAppChat() {
           table: 'whatsapp_messages',
           filter: `conversation_id=eq.${selectedConversation.id}`
         }, (payload) => {
+          console.log('[Realtime] Message updated:', payload);
           setMessages(prev => prev.map(m => 
             m.id === (payload.new as Message).id ? payload.new as Message : m
           ));
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log('[Realtime] Messages subscription status:', status);
+        });
 
-      // Polling backup every 3 seconds
+      // Polling backup every 5 seconds (reduced frequency since realtime should work)
       const pollInterval = setInterval(async () => {
         const { data } = await supabase
           .from('whatsapp_messages')
@@ -253,9 +267,10 @@ export default function WhatsAppChat() {
           .order('created_at', { ascending: true });
         
         if (data && data.length > messages.length) {
+          console.log('[Polling] Found new messages:', data.length - messages.length);
           setMessages(data);
         }
-      }, 3000);
+      }, 5000);
 
       return () => {
         supabase.removeChannel(channel);
