@@ -87,16 +87,20 @@ export function LeadsTable({ leads, title, headerRight }: LeadsTableProps) {
                   <TableCell className="font-medium">{lead.name}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.specialty}</TableCell>
                   <TableCell>
-                    <a
-                      href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 text-pink-500 hover:text-pink-600"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      {lead.instagram}
-                    </a>
+                    {lead.instagram ? (
+                      <a
+                        href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-pink-500 hover:text-pink-600"
+                      >
+                        <Instagram className="w-4 h-4" />
+                        {lead.instagram}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center font-semibold">
                     {formatFollowers(lead.followers)}

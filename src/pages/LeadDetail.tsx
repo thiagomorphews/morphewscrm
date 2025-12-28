@@ -251,14 +251,20 @@ export default function LeadDetail() {
               <h2 className="text-lg font-semibold text-foreground mb-4">Informações de Contato</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                  <a
-                    href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
-                  >
-                    <Instagram className="w-5 h-5 text-pink-500" />
-                  </a>
+                  {lead.instagram ? (
+                    <a
+                      href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
+                    >
+                      <Instagram className="w-5 h-5 text-pink-500" />
+                    </a>
+                  ) : (
+                    <div className="p-2 rounded-lg bg-pink-500/10">
+                      <Instagram className="w-5 h-5 text-pink-500" />
+                    </div>
+                  )}
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Instagram</p>
                     <div className="flex items-center gap-2">
@@ -268,14 +274,16 @@ export default function LeadDetail() {
                         displayClassName="font-medium text-pink-500"
                         placeholder="@usuario"
                       />
-                      <a
-                        href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-pink-500 hover:text-pink-600"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                      {lead.instagram && (
+                        <a
+                          href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-pink-500 hover:text-pink-600"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

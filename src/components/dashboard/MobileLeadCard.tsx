@@ -50,16 +50,18 @@ export function MobileLeadCard({ lead }: MobileLeadCardProps) {
               {stageInfo.label}
             </Badge>
             
-            <a
-              href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 text-xs text-pink-500"
-            >
-              <Instagram className="w-3 h-3" />
-              {formatFollowers(lead.followers)}
-            </a>
+            {lead.instagram ? (
+              <a
+                href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-xs text-pink-500"
+              >
+                <Instagram className="w-3 h-3" />
+                {formatFollowers(lead.followers)}
+              </a>
+            ) : null}
 
             {lead.negotiated_value && (
               <span className="text-xs font-semibold text-primary">
