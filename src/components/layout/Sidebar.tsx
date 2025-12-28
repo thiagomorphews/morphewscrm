@@ -16,7 +16,8 @@ import {
   FileText,
   Package,
   ShoppingCart as SalesIcon,
-  Truck
+  Truck,
+  Headphones
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -51,6 +52,7 @@ export function Sidebar() {
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: Headphones, label: 'Add Receptivo', path: '/add-receptivo' },
     { icon: Users, label: 'Todos os Leads', path: '/leads' },
     { icon: Plus, label: 'Novo Lead', path: '/leads/new' },
     { icon: Package, label: 'Produtos', path: '/produtos' },

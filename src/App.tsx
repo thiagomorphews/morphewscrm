@@ -34,6 +34,7 @@ import RomaneioPrint from "./pages/RomaneioPrint";
 import MyDeliveries from "./pages/MyDeliveries";
 import SalesReport from "./pages/SalesReport";
 import SignupSuccess from "./pages/SignupSuccess";
+import AddReceptivo from "./pages/AddReceptivo";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
 
@@ -219,7 +220,15 @@ const App = () => (
                 <ProtectedRoute>
                   <ErrorBoundary title="Relatórios indisponíveis">
                     <SalesReport />
-                  </ErrorBoundary>
+              </ErrorBoundary>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/add-receptivo"
+              element={
+                <ProtectedRoute>
+                  <AddReceptivo />
                 </ProtectedRoute>
               }
             />
