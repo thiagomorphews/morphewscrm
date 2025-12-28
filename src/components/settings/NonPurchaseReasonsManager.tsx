@@ -36,7 +36,7 @@ import {
   useDeleteNonPurchaseReason 
 } from '@/hooks/useNonPurchaseReasons';
 import { useFunnelStages } from '@/hooks/useFunnelStages';
-import { useAuth } from '@/hooks/useAuth';
+import { useTenant } from '@/hooks/useTenant';
 import { toast } from '@/hooks/use-toast';
 
 interface ReasonFormData {
@@ -60,8 +60,7 @@ const initialFormData: ReasonFormData = {
 export function NonPurchaseReasonsManager() {
   const { data: reasons = [], isLoading } = useNonPurchaseReasons();
   const { data: stages = [] } = useFunnelStages();
-  const { profile } = useAuth();
-  const organizationId = profile?.organization_id;
+  const { tenantId } = useTenant();
   
   const createReason = useCreateNonPurchaseReason();
   const updateReason = useUpdateNonPurchaseReason();
@@ -77,14 +76,14 @@ export function NonPurchaseReasonsManager() {
       toast({ title: 'Digite um nome', variant: 'destructive' });
       return;
     }
-    if (!organizationId) {
+    if (!tenantId) {
       toast({ title: 'Organização não encontrada', variant: 'destructive' });
       return;
     }
 
     try {
       await createReason.mutateAsync({
-        organization_id: organizationId,
+        organization_id: tenantId,
         name: formData.name.trim(),
         target_stage_id: formData.target_stage_id || null,
         followup_hours: formData.followup_hours || 0,

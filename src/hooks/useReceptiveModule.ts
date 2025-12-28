@@ -32,19 +32,17 @@ export const CONVERSATION_MODES = [
 ] as const;
 
 export function useReceptiveModuleAccess() {
-  const { user, profile } = useAuth();
-  const orgId = profile?.organization_id ?? null;
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['receptive-module-access', user?.id, orgId],
+    queryKey: ['receptive-module-access', user?.id],
     queryFn: async () => {
-      if (!user || !orgId) return { hasAccess: false, orgEnabled: false, userEnabled: false };
+      if (!user) return { hasAccess: false, orgEnabled: false, userEnabled: false };
 
       // Check if organization has the module enabled
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .select('receptive_module_enabled')
-        .eq('id', orgId)
         .single();
 
       if (orgError) {
@@ -57,28 +55,26 @@ export function useReceptiveModuleAccess() {
         return { hasAccess: false, orgEnabled: false, userEnabled: false };
       }
 
-      // Check if user has access (scoped to the same organization)
+      // Check if user has access
       const { data: permData, error: permError } = await supabase
         .from('user_permissions')
         .select('receptive_module_access')
         .eq('user_id', user.id)
-        .eq('organization_id', orgId)
-        .maybeSingle();
+        .single();
 
-      if (permError) {
+      if (permError && permError.code !== 'PGRST116') {
         console.error('Error checking user receptive permission:', permError);
       }
 
       const userEnabled = permData?.receptive_module_access ?? false;
 
-      return {
-        hasAccess: orgEnabled && userEnabled,
-        orgEnabled,
-        userEnabled,
+      return { 
+        hasAccess: orgEnabled && userEnabled, 
+        orgEnabled, 
+        userEnabled 
       };
     },
-    enabled: !!user && !!orgId,
-    staleTime: 60 * 1000,
+    enabled: !!user,
   });
 }
 
