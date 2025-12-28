@@ -1061,6 +1061,7 @@ export type Database = {
           owner_email: string | null
           owner_name: string | null
           phone: string | null
+          receptive_module_enabled: boolean
           slug: string
           updated_at: string
           whatsapp_dms_enabled: boolean
@@ -1072,6 +1073,7 @@ export type Database = {
           owner_email?: string | null
           owner_name?: string | null
           phone?: string | null
+          receptive_module_enabled?: boolean
           slug: string
           updated_at?: string
           whatsapp_dms_enabled?: boolean
@@ -1083,6 +1085,7 @@ export type Database = {
           owner_email?: string | null
           owner_name?: string | null
           phone?: string | null
+          receptive_module_enabled?: boolean
           slug?: string
           updated_at?: string
           whatsapp_dms_enabled?: boolean
@@ -1197,6 +1200,93 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receptive_attendances: {
+        Row: {
+          completed: boolean
+          conversation_mode: string
+          created_at: string
+          id: string
+          lead_existed: boolean
+          lead_id: string | null
+          non_purchase_reason_id: string | null
+          organization_id: string
+          phone_searched: string
+          product_answers: Json | null
+          product_id: string | null
+          sale_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          conversation_mode: string
+          created_at?: string
+          id?: string
+          lead_existed?: boolean
+          lead_id?: string | null
+          non_purchase_reason_id?: string | null
+          organization_id: string
+          phone_searched: string
+          product_answers?: Json | null
+          product_id?: string | null
+          sale_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          conversation_mode?: string
+          created_at?: string
+          id?: string
+          lead_existed?: boolean
+          lead_id?: string | null
+          non_purchase_reason_id?: string | null
+          organization_id?: string
+          phone_searched?: string
+          product_answers?: Json | null
+          product_id?: string | null
+          sale_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receptive_attendances_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receptive_attendances_non_purchase_reason_id_fkey"
+            columns: ["non_purchase_reason_id"]
+            isOneToOne: false
+            referencedRelation: "non_purchase_reasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receptive_attendances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receptive_attendances_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "lead_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receptive_attendances_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
@@ -1736,6 +1826,7 @@ export type Database = {
           organization_id: string
           products_manage: boolean
           products_view: boolean
+          receptive_module_access: boolean
           reports_view: boolean
           sales_cancel: boolean
           sales_confirm_payment: boolean
@@ -1764,6 +1855,7 @@ export type Database = {
           organization_id: string
           products_manage?: boolean
           products_view?: boolean
+          receptive_module_access?: boolean
           reports_view?: boolean
           sales_cancel?: boolean
           sales_confirm_payment?: boolean
@@ -1792,6 +1884,7 @@ export type Database = {
           organization_id?: string
           products_manage?: boolean
           products_view?: boolean
+          receptive_module_access?: boolean
           reports_view?: boolean
           sales_cancel?: boolean
           sales_confirm_payment?: boolean
