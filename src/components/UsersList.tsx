@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Loader2, Trash2, Shield, User, Pencil } from 'lucide-react';
+import { normalizeInstagramHandle } from '@/lib/instagram';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -76,6 +77,7 @@ export function UsersList() {
       {users.map((user) => {
         const isCurrentUser = user.user_id === currentUser?.id;
         const fullName = `${user.first_name} ${user.last_name}`;
+        const instagramHandle = normalizeInstagramHandle(user.instagram);
         
         return (
           <div
@@ -98,8 +100,8 @@ export function UsersList() {
               </div>
               <div>
                 <p className="font-medium">{fullName}</p>
-                {user.instagram && (
-                  <p className="text-sm text-muted-foreground">@{user.instagram.replace('@', '')}</p>
+                {instagramHandle && (
+                  <p className="text-sm text-muted-foreground">@{instagramHandle}</p>
                 )}
               </div>
             </div>
