@@ -48,6 +48,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { getInstagramProfileUrl, normalizeInstagramHandle } from '@/lib/instagram';
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -157,6 +158,8 @@ export default function LeadDetail() {
   }
 
   const stageInfo = FUNNEL_STAGES[lead.stage];
+  const instagramUrl = getInstagramProfileUrl(lead.instagram);
+  const instagramHandle = normalizeInstagramHandle(lead.instagram);
 
   const formatFollowers = (num: number | null) => {
     if (!num) return '0';
@@ -251,9 +254,9 @@ export default function LeadDetail() {
               <h2 className="text-lg font-semibold text-foreground mb-4">Informações de Contato</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
-                  {lead.instagram ? (
+                  {instagramUrl ? (
                     <a
-                      href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                      href={instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
@@ -274,12 +277,13 @@ export default function LeadDetail() {
                         displayClassName="font-medium text-pink-500"
                         placeholder="@usuario"
                       />
-                      {lead.instagram && (
+                      {instagramUrl && instagramHandle && (
                         <a
-                          href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                          href={instagramUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-pink-500 hover:text-pink-600"
+                          aria-label={`Abrir Instagram de @${instagramHandle}`}
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>

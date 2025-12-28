@@ -4,6 +4,7 @@ import { Lead, FUNNEL_STAGES } from '@/types/lead';
 import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { cn } from '@/lib/utils';
+import { getInstagramProfileUrl, normalizeInstagramHandle } from '@/lib/instagram';
 import {
   Table,
   TableBody,
@@ -76,6 +77,8 @@ export function LeadsTable({ leads, title, headerRight }: LeadsTableProps) {
           <TableBody>
             {leads.map((lead, index) => {
               const stageInfo = FUNNEL_STAGES[lead.stage];
+              const instagramUrl = getInstagramProfileUrl(lead.instagram);
+              const instagramHandle = normalizeInstagramHandle(lead.instagram);
               
               return (
                 <TableRow
@@ -87,16 +90,16 @@ export function LeadsTable({ leads, title, headerRight }: LeadsTableProps) {
                   <TableCell className="font-medium">{lead.name}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.specialty}</TableCell>
                   <TableCell>
-                    {lead.instagram ? (
+                    {instagramUrl && instagramHandle ? (
                       <a
-                        href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                        href={instagramUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="flex items-center gap-1 text-pink-500 hover:text-pink-600"
                       >
                         <Instagram className="w-4 h-4" />
-                        {lead.instagram}
+                        @{instagramHandle}
                       </a>
                     ) : (
                       <span className="text-muted-foreground">-</span>

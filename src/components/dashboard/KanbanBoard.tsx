@@ -23,6 +23,7 @@ import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { StageChangeDialog } from '@/components/StageChangeDialog';
 import { cn } from '@/lib/utils';
+import { getInstagramProfileUrl } from '@/lib/instagram';
 import { GripVertical, User, Instagram } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
@@ -53,6 +54,8 @@ function KanbanCard({ lead, onClick }: KanbanCardProps) {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const instagramUrl = getInstagramProfileUrl(lead.instagram);
 
   return (
     <div
@@ -91,9 +94,9 @@ function KanbanCard({ lead, onClick }: KanbanCardProps) {
             </div>
             
             <div className="flex items-center gap-1">
-              {lead.instagram && (
+              {instagramUrl && (
                 <a
-                  href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                  href={instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}

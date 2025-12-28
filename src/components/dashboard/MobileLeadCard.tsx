@@ -4,6 +4,7 @@ import { Lead, FUNNEL_STAGES } from '@/types/lead';
 import { StarRating } from '@/components/StarRating';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { cn } from '@/lib/utils';
+import { getInstagramProfileUrl } from '@/lib/instagram';
 import { Badge } from '@/components/ui/badge';
 
 interface MobileLeadCardProps {
@@ -13,6 +14,7 @@ interface MobileLeadCardProps {
 export function MobileLeadCard({ lead }: MobileLeadCardProps) {
   const navigate = useNavigate();
   const stageInfo = FUNNEL_STAGES[lead.stage];
+  const instagramUrl = getInstagramProfileUrl(lead.instagram);
 
   const formatFollowers = (num: number | null) => {
     if (!num) return '0';
@@ -50,9 +52,9 @@ export function MobileLeadCard({ lead }: MobileLeadCardProps) {
               {stageInfo.label}
             </Badge>
             
-            {lead.instagram ? (
+            {instagramUrl ? (
               <a
-                href={`https://instagram.com/${lead.instagram.replace('@', '')}`}
+                href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
