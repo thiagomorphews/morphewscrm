@@ -47,194 +47,196 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/force-password-change" element={<ForcePasswordChange />} />
-            <Route path="/setup" element={<Setup />} />
-            <Route path="/planos" element={<Planos />} />
-            <Route path="/signup-success" element={<SignupSuccess />} />
-            <Route path="/auth/error" element={<AuthError />} />
+          <ErrorBoundary title="Ops! Algo deu errado">
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/force-password-change" element={<ForcePasswordChange />} />
+              <Route path="/setup" element={<Setup />} />
+              <Route path="/planos" element={<Planos />} />
+              <Route path="/signup-success" element={<SignupSuccess />} />
+              <Route path="/auth/error" element={<AuthError />} />
 
-            {/* Home - shows landing for non-auth, dashboard for auth */}
-            <Route path="/" element={<Home />} />
+              {/* Home - shows landing for non-auth, dashboard for auth */}
+              <Route path="/" element={<Home />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/leads"
-              element={
-                <ProtectedRoute>
-                  <LeadsList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/new"
-              element={
-                <ProtectedRoute>
-                  <NewLead />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/:id"
-              element={
-                <ProtectedRoute>
-                  <LeadDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/:id/edit"
-              element={
-                <ProtectedRoute>
-                  <EditLead />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cadastro"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <Cadastro />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/instagram"
-              element={
-                <ProtectedRoute>
-                  <InstagramDMs />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/whatsapp"
-              element={
-                <ProtectedRoute>
-                  <WhatsAppDMs />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/whatsapp/chat"
-              element={
-                <ProtectedRoute>
-                  <WhatsAppChat />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/interessados"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <InterestedLeads />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <SuperAdmin />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/onboarding"
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/equipe"
-              element={
-                <ProtectedRoute>
-                  <Team />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/produtos"
-              element={
-                <ProtectedRoute>
-                  <Products />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vendas"
-              element={
-                <ProtectedRoute>
-                  <Sales />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vendas/nova"
-              element={
-                <ProtectedRoute>
-                  <NewSale />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vendas/:id"
-              element={
-                <ProtectedRoute>
-                  <SaleDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/vendas/:id/romaneio"
-              element={
-                <ProtectedRoute>
-                  <RomaneioPrint />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/minhas-entregas"
-              element={
-                <ProtectedRoute>
-                  <MyDeliveries />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/relatorios/vendas"
-              element={
-                <ProtectedRoute>
-                  <ErrorBoundary title="Relatórios indisponíveis">
-                    <SalesReport />
-              </ErrorBoundary>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/add-receptivo"
-              element={
-                <ProtectedRoute>
-                  <AddReceptivo />
-                </ProtectedRoute>
-              }
-            />
+              {/* Protected routes */}
+              <Route
+                path="/leads"
+                element={
+                  <ProtectedRoute>
+                    <LeadsList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/new"
+                element={
+                  <ProtectedRoute>
+                    <NewLead />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/:id"
+                element={
+                  <ProtectedRoute>
+                    <LeadDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leads/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <EditLead />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cadastro"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Cadastro />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instagram"
+                element={
+                  <ProtectedRoute>
+                    <InstagramDMs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/whatsapp"
+                element={
+                  <ProtectedRoute>
+                    <WhatsAppDMs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/whatsapp/chat"
+                element={
+                  <ProtectedRoute>
+                    <WhatsAppChat />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/interessados"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <InterestedLeads />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <SuperAdmin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/equipe"
+                element={
+                  <ProtectedRoute>
+                    <Team />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/produtos"
+                element={
+                  <ProtectedRoute>
+                    <Products />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendas"
+                element={
+                  <ProtectedRoute>
+                    <Sales />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendas/nova"
+                element={
+                  <ProtectedRoute>
+                    <NewSale />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendas/:id"
+                element={
+                  <ProtectedRoute>
+                    <SaleDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/vendas/:id/romaneio"
+                element={
+                  <ProtectedRoute>
+                    <RomaneioPrint />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/minhas-entregas"
+                element={
+                  <ProtectedRoute>
+                    <MyDeliveries />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/relatorios/vendas"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary title="Relatórios indisponíveis">
+                      <SalesReport />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/add-receptivo"
+                element={
+                  <ProtectedRoute>
+                    <AddReceptivo />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
