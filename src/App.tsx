@@ -35,6 +35,7 @@ import MyDeliveries from "./pages/MyDeliveries";
 import SalesReport from "./pages/SalesReport";
 import SignupSuccess from "./pages/SignupSuccess";
 import AddReceptivo from "./pages/AddReceptivo";
+import WhatsAppV2 from "./pages/WhatsAppV2";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
 
@@ -230,6 +231,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <AddReceptivo />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/whatsapp-v2"
+                element={
+                  <ProtectedRoute>
+                    <WhatsAppV2 />
                   </ProtectedRoute>
                 }
               />
