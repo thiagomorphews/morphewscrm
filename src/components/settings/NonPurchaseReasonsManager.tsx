@@ -324,22 +324,25 @@ function ReasonForm({ formData, setFormData, stages }: ReasonFormProps) {
 
       <div className="space-y-2">
         <Label>Mover para Etapa do Funil</Label>
-        <Select 
-          value={formData.target_stage_id} 
-          onValueChange={(value) => setFormData(prev => ({ ...prev, target_stage_id: value }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione uma etapa (opcional)" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Nenhuma (manter atual)</SelectItem>
-            {stages.map((stage) => (
-              <SelectItem key={stage.id} value={stage.id}>
-                {stage.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <Select 
+        value={formData.target_stage_id || '__none__'} 
+        onValueChange={(value) => setFormData(prev => ({ 
+          ...prev, 
+          target_stage_id: value === '__none__' ? '' : value 
+        }))}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Selecione uma etapa (opcional)" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Nenhuma (manter atual)</SelectItem>
+          {stages.map((stage) => (
+            <SelectItem key={stage.id} value={stage.id}>
+              {stage.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
         <p className="text-xs text-muted-foreground">
           Ao classificar com este motivo, o lead será movido automaticamente para esta etapa.
         </p>
