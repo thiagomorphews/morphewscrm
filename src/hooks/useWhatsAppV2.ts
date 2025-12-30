@@ -305,35 +305,25 @@ export function useWhatsAppV2Messages(chatId: string | null) {
 
 export function useSendWhatsAppV2Message() {
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
   
   return useMutation({
     mutationFn: async (data: {
       chat_id: string;
-      content?: string;
-      media_url?: string;
-      media_type?: WhatsAppV2Message['media_type'];
-      media_mime_type?: string;
-      media_filename?: string;
-      quoted_message_id?: string;
-      quoted_content?: string;
+      instance_id: string;
+      content: string;
     }) => {
-      if (!profile?.organization_id) throw new Error('Organização não encontrada');
-      
-      const { data: message, error } = await supabase
-        .from('whatsapp_v2_messages')
-        .insert({
-          ...data,
-          tenant_id: profile.organization_id,
-          is_from_me: true,
-          status: 'pending',
-          media_type: data.media_type || 'text',
-        })
-        .select()
-        .single();
+      const { data: response, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          chatId: data.chat_id,
+          instanceId: data.instance_id,
+          content: data.content,
+        },
+      });
       
       if (error) throw error;
-      return message as WhatsAppV2Message;
+      if (response?.error) throw new Error(response.error);
+      
+      return response as WhatsAppV2Message;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-v2-messages', data.chat_id] });
