@@ -33,6 +33,7 @@ import SaleDetail from "./pages/SaleDetail";
 import RomaneioPrint from "./pages/RomaneioPrint";
 import MyDeliveries from "./pages/MyDeliveries";
 import SalesReport from "./pages/SalesReport";
+import FinancialReport from "./pages/FinancialReport";
 import SignupSuccess from "./pages/SignupSuccess";
 import AddReceptivo from "./pages/AddReceptivo";
 import WhatsAppV2 from "./pages/WhatsAppV2";
@@ -223,6 +224,14 @@ const App = () => (
                     <ErrorBoundary title="Relatórios indisponíveis">
                       <SalesReport />
                     </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financeiro"
+                element={
+                  <ProtectedRoute>
+                    <FinancialReport />
                   </ProtectedRoute>
                 }
               />
