@@ -346,7 +346,7 @@ export default function WhatsAppV2() {
   
   // Handle send message
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedChatId) return;
+    if (!messageInput.trim() || !selectedChatId || !selectedInstanceId) return;
     
     const content = messageInput.trim();
     setMessageInput('');
@@ -354,10 +354,17 @@ export default function WhatsAppV2() {
     try {
       await sendMessage.mutateAsync({
         chat_id: selectedChatId,
+        instance_id: selectedInstanceId,
         content,
       });
-    } catch (error) {
+      
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (error: any) {
       console.error('Erro ao enviar mensagem:', error);
+      toast.error(error.message || 'Erro ao enviar mensagem');
       setMessageInput(content); // Restore message on error
     }
   };
