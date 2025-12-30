@@ -23,17 +23,22 @@ serve(async (req) => {
     const adminToken = Deno.env.get('WASENDERAPI_TOKEN')
     
     if (!adminToken) {
-      throw new Error('Token do WaSender não configurado. Configure WASENDERAPI_TOKEN nos secrets.')
+      throw new Error('CONFIG_ERROR: Secret WASENDERAPI_TOKEN não encontrada no Supabase.')
     }
 
-    if (!sessionName || !tenantId) {
-      throw new Error('sessionName e tenantId são obrigatórios')
+    if (!sessionName) {
+      throw new Error('O Nome da Instância é obrigatório.')
     }
 
-    console.log('Iniciando sessão WhatsApp:', { sessionName, tenantId })
+    if (!tenantId) {
+      throw new Error('O tenantId é obrigatório.')
+    }
 
-    const baseUrl = 'https://api.wasenderapi.com'
-    const supabaseProjectId = Deno.env.get('SUPABASE_URL')?.match(/https:\/\/([^.]+)/)?.[1] || 'hwbxvrewiapyhjceabvw'
+    // Prepara URL do Webhook dinamicamente
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const projectRef = supabaseUrl.match(/https:\/\/(.+)\.supabase\.co/)?.[1]
+
+    console.log(`Iniciando sessão WaSender: ${sessionName} para tenant: ${tenantId}`)
 
     // 1. Cria a instância na tabela V2 primeiro (status: QRCODE)
     const { data: newInstance, error: dbError } = await supabase
@@ -41,58 +46,55 @@ serve(async (req) => {
       .insert({
         name: sessionName,
         tenant_id: tenantId,
-        api_url: baseUrl,
+        api_url: 'https://api.wasenderapi.com',
         api_key: 'pending',
-        status: 'qrcode'
+        status: 'QRCODE'
       })
       .select()
       .single()
 
     if (dbError) {
-      console.error('Erro ao criar instância no banco:', dbError)
-      throw new Error('Erro ao criar instância no banco de dados')
+      console.error('Erro DB:', dbError)
+      throw new Error('Falha ao criar registro no banco de dados.')
     }
 
     console.log('Instância criada no banco:', newInstance.id)
 
-    // 2. Pede ao WaSender para iniciar sessão
-    const webhookUrl = `https://${supabaseProjectId}.supabase.co/functions/v1/whatsapp-webhook?instance_id=${newInstance.id}`
-    
+    // URL do Webhook para o WaSender enviar as mensagens de volta
+    const webhookUrl = `https://${projectRef}.supabase.co/functions/v1/whatsapp-webhook?instance_id=${newInstance.id}`
     console.log('Webhook URL:', webhookUrl)
 
-    const waResponse = await fetch(`${baseUrl}/api/sessions/start`, {
+    // 2. Chama o WaSender para pegar o QR Code
+    const waResponse = await fetch('https://api.wasenderapi.com/api/sessions/start', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${adminToken}`
       },
       body: JSON.stringify({
-        name: `${sessionName.replace(/\s+/g, '_')}_${newInstance.id.slice(0, 8)}`,
+        name: `${sessionName.trim().replace(/\s+/g, '_')}-${newInstance.id.slice(0, 4)}`,
         webhookUrl: webhookUrl,
         waitQrCode: true
       })
     })
 
     const waData = await waResponse.json()
-    
     console.log('Resposta WaSender:', { status: waResponse.status, data: waData })
 
     if (!waResponse.ok) {
-      // Limpa a instância criada se falhou no WaSender
+      console.error('Erro WaSender:', waData)
+      // Se falhou, deleta a instância criada para não sujar o banco
       await supabase.from('whatsapp_v2_instances').delete().eq('id', newInstance.id)
-      throw new Error(waData.message || waData.error || 'Erro ao criar sessão no WaSender')
+      throw new Error(waData.message || waData.error || 'Erro ao comunicar com a API do WaSender.')
     }
 
-    // 3. Atualiza a instância com a key retornada (se houver)
-    const sessionKey = waData.key || waData.session?.key || waData.apiKey || waData.token
+    // 3. Salva a API Key retornada
+    const sessionKey = waData.key || waData.session?.key || waData.token
     
     if (sessionKey) {
       await supabase
         .from('whatsapp_v2_instances')
-        .update({
-          api_key: sessionKey,
-          qr_code: waData.qrcode || waData.qr || waData.qrCode || null
-        })
+        .update({ api_key: sessionKey })
         .eq('id', newInstance.id)
     }
 
@@ -111,10 +113,10 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
-    console.error('Init Session error:', errorMessage)
+    console.error('Function Error:', errorMessage)
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500
+      status: 400
     })
   }
 })
