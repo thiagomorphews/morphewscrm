@@ -17,7 +17,8 @@ import {
   Package,
   ShoppingCart as SalesIcon,
   Truck,
-  Headphones
+  Headphones,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -62,6 +63,7 @@ export function Sidebar() {
     { icon: Plus, label: 'Novo Lead', path: '/leads/new' },
     { icon: Package, label: 'Produtos', path: '/produtos' },
     { icon: SalesIcon, label: 'Vendas', path: '/vendas' },
+    { icon: DollarSign, label: 'Financeiro', path: '/financeiro' },
     { icon: FileText, label: 'Relatórios', path: '/relatorios/vendas' },
     ...(canSeeDeliveries ? [
       { icon: Truck, label: 'Minhas Entregas', path: '/minhas-entregas' },

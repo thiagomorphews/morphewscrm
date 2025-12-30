@@ -315,6 +315,54 @@ export type Database = {
         }
         Relationships: []
       }
+      installment_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          installment_id: string
+          new_status: string
+          notes: string | null
+          organization_id: string
+          previous_status: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          installment_id: string
+          new_status: string
+          notes?: string | null
+          organization_id: string
+          previous_status?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          installment_id?: string
+          new_status?: string
+          notes?: string | null
+          organization_id?: string
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installment_history_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "sale_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interested_leads: {
         Row: {
           converted_at: string | null
@@ -1334,6 +1382,72 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_installments: {
+        Row: {
+          amount_cents: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          notes: string | null
+          organization_id: string
+          payment_proof_url: string | null
+          sale_id: string
+          status: string
+          total_installments: number
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          organization_id: string
+          payment_proof_url?: string | null
+          sale_id: string
+          status?: string
+          total_installments?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          organization_id?: string
+          payment_proof_url?: string | null
+          sale_id?: string
+          status?: string
+          total_installments?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_installments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_installments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
