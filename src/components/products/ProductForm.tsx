@@ -33,6 +33,7 @@ const formSchema = z.object({
   minimum_price: z.coerce.number().min(0).optional(),
   usage_period_days: z.coerce.number().min(0).optional(),
   is_active: z.boolean().optional(),
+  is_featured: z.boolean().optional(),
   // New fields
   cost_cents: z.coerce.number().min(0).optional(),
   stock_quantity: z.coerce.number().min(0).optional(),
@@ -64,6 +65,7 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel }: ProductF
       minimum_price: product?.minimum_price || 0,
       usage_period_days: product?.usage_period_days || 0,
       is_active: product?.is_active ?? true,
+      is_featured: product?.is_featured ?? false,
       // New fields
       cost_cents: product?.cost_cents || 0,
       stock_quantity: product?.stock_quantity || 0,
@@ -130,6 +132,27 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel }: ProductF
                     <FormLabel className="text-base">Produto Ativo</FormLabel>
                     <FormDescription>
                       Produtos inativos não aparecem nas opções de venda
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="is_featured"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Produto Destaque</FormLabel>
+                    <FormDescription>
+                      Produtos destaque aparecem como botões rápidos na seleção
                     </FormDescription>
                   </div>
                   <FormControl>

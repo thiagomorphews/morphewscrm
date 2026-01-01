@@ -47,6 +47,7 @@ import { useProducts, Product } from '@/hooks/useProducts';
 import { useCreateSale, formatCurrency, DeliveryType } from '@/hooks/useSales';
 import { LeadSearchSelect } from '@/components/sales/LeadSearchSelect';
 import { ProductSelectionDialog } from '@/components/sales/ProductSelectionDialog';
+import { ProductSelectorForSale } from '@/components/products/ProductSelectorForSale';
 import { DeliveryTypeSelector } from '@/components/sales/DeliveryTypeSelector';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
@@ -246,7 +247,7 @@ export default function NewSale() {
     }
   };
 
-  const activeProducts = products.filter(p => p.is_active);
+  
 
   return (
     <Layout>
@@ -397,30 +398,14 @@ export default function NewSale() {
               <CardContent>
                 <div className="mb-4">
                   <Label>Adicionar Produto</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
-                    {productsLoading ? (
-                      <p className="col-span-full text-sm text-muted-foreground">Carregando produtos...</p>
-                    ) : activeProducts.length === 0 ? (
-                      <p className="col-span-full text-sm text-muted-foreground">
-                        Nenhum produto cadastrado. 
-                        <Button variant="link" className="p-0 h-auto ml-1" onClick={() => navigate('/produtos')}>
-                          Cadastrar produtos
-                        </Button>
-                      </p>
-                    ) : (
-                      activeProducts.map(product => (
-                        <Button
-                          key={product.id}
-                          variant="outline"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => handleOpenProductDialog(product)}
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          {product.name}
-                        </Button>
-                      ))
-                    )}
+                  <div className="mt-2">
+                    <ProductSelectorForSale
+                      products={products}
+                      isLoading={productsLoading}
+                      onSelect={handleOpenProductDialog}
+                      placeholder="Buscar produto por nome..."
+                      emptyAction={() => navigate('/produtos')}
+                    />
                   </div>
                 </div>
 
