@@ -110,12 +110,13 @@ export function useInitWhatsAppV2Session() {
   const { profile } = useAuth();
   
   return useMutation({
-    mutationFn: async (data: { sessionName: string }) => {
+    mutationFn: async (data: { sessionName: string; phoneNumber?: string }) => {
       if (!profile?.organization_id) throw new Error('Organização não encontrada');
       
       const { data: response, error } = await supabase.functions.invoke('whatsapp-init-session', {
         body: {
           sessionName: data.sessionName,
+          phoneNumber: data.phoneNumber,
           tenantId: profile.organization_id,
         },
       });
@@ -123,7 +124,7 @@ export function useInitWhatsAppV2Session() {
       if (error) throw error;
       if (response?.error) throw new Error(response.error);
       
-      return response as { qrCode: string; instanceId: string; sessionKey?: string; message: string };
+      return response as { qrCode: string; instanceId: string; sessionKey?: string; message?: string };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-v2-instances'] });

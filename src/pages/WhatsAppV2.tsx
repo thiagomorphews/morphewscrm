@@ -304,6 +304,7 @@ export default function WhatsAppV2() {
   // Modal state for new instance
   const [showAddInstanceModal, setShowAddInstanceModal] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState('');
+  const [newInstancePhone, setNewInstancePhone] = useState('');
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [pendingInstanceId, setPendingInstanceId] = useState<string | null>(null);
   
@@ -395,6 +396,7 @@ export default function WhatsAppV2() {
     try {
       const result = await initSession.mutateAsync({
         sessionName: newInstanceName.trim(),
+        phoneNumber: newInstancePhone.trim() || undefined,
       });
       
       if (result.qrCode) {
@@ -415,6 +417,7 @@ export default function WhatsAppV2() {
   const handleCloseModal = () => {
     setShowAddInstanceModal(false);
     setNewInstanceName('');
+    setNewInstancePhone('');
     setQrCodeData(null);
     setPendingInstanceId(null);
   };
@@ -523,18 +526,34 @@ export default function WhatsAppV2() {
                 
                 <div className="space-y-4 py-4">
                   {!qrCodeData ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="instance-name">Nome da Instância</Label>
-                      <Input
-                        id="instance-name"
-                        placeholder="Ex: WhatsApp Vendas"
-                        value={newInstanceName}
-                        onChange={(e) => setNewInstanceName(e.target.value)}
-                        disabled={initSession.isPending}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Digite um nome para identificar esta conexão.
-                      </p>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="instance-name">Nome da Instância</Label>
+                        <Input
+                          id="instance-name"
+                          placeholder="Ex: Vendas"
+                          value={newInstanceName}
+                          onChange={(e) => setNewInstanceName(e.target.value)}
+                          disabled={initSession.isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Nome para identificar esta conexão.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="instance-phone">Número do WhatsApp</Label>
+                        <Input
+                          id="instance-phone"
+                          placeholder="Ex: 551199999999"
+                          value={newInstancePhone}
+                          onChange={(e) => setNewInstancePhone(e.target.value.replace(/\D/g, ''))}
+                          disabled={initSession.isPending}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Número com código do país (opcional, será detectado ao escanear).
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4">
