@@ -332,6 +332,26 @@ export default function AddReceptivo() {
         if (updateError) throw updateError;
       }
 
+      // Save product answers to lead_product_answers table
+      if (leadId && selectedProductId && tenantId && Object.keys(productAnswers).length > 0) {
+        const { error: answersError } = await supabase
+          .from('lead_product_answers')
+          .upsert({
+            lead_id: leadId,
+            product_id: selectedProductId,
+            organization_id: tenantId,
+            answer_1: productAnswers.answer_1 || null,
+            answer_2: productAnswers.answer_2 || null,
+            answer_3: productAnswers.answer_3 || null,
+          }, {
+            onConflict: 'lead_id,product_id',
+          });
+        
+        if (answersError) {
+          console.error('Erro ao salvar respostas:', answersError);
+        }
+      }
+
       // Update attendance
       if (attendanceId) {
         await updateAttendance.mutateAsync({
@@ -384,6 +404,26 @@ export default function AddReceptivo() {
 
         if (leadError) throw leadError;
         leadId = newLead.id;
+      }
+
+      // Save product answers to lead_product_answers table
+      if (leadId && selectedProductId && tenantId && Object.keys(productAnswers).length > 0) {
+        const { error: answersError } = await supabase
+          .from('lead_product_answers')
+          .upsert({
+            lead_id: leadId,
+            product_id: selectedProductId,
+            organization_id: tenantId,
+            answer_1: productAnswers.answer_1 || null,
+            answer_2: productAnswers.answer_2 || null,
+            answer_3: productAnswers.answer_3 || null,
+          }, {
+            onConflict: 'lead_id,product_id',
+          });
+        
+        if (answersError) {
+          console.error('Erro ao salvar respostas:', answersError);
+        }
       }
 
       // If reason has target stage, update lead stage
