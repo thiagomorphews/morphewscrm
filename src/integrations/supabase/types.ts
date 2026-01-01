@@ -541,6 +541,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_featured: boolean
           key_question_1: string | null
           key_question_2: string | null
           key_question_3: string | null
@@ -565,6 +566,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_featured?: boolean
           key_question_1?: string | null
           key_question_2?: string | null
           key_question_3?: string | null
@@ -589,6 +591,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_featured?: boolean
           key_question_1?: string | null
           key_question_2?: string | null
           key_question_3?: string | null

@@ -41,7 +41,8 @@ import {
   CONVERSATION_MODES 
 } from '@/hooks/useReceptiveModule';
 import { useLeadSources } from '@/hooks/useConfigOptions';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts, Product } from '@/hooks/useProducts';
+import { ProductSelector } from '@/components/products/ProductSelector';
 import { useNonPurchaseReasons } from '@/hooks/useNonPurchaseReasons';
 import { useFunnelStages } from '@/hooks/useFunnelStages';
 import { useAuth } from '@/hooks/useAuth';
@@ -893,29 +894,12 @@ export default function AddReceptivo() {
               {renderNavButtons(() => setCurrentStep('conversation'), handleGoToQuestions, !selectedProductId)}
 
               <Separator />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {products.map((product) => (
-                  <Button
-                    key={product.id}
-                    variant={selectedProductId === product.id ? 'default' : 'outline'}
-                    className="h-auto p-4 flex flex-col items-start text-left"
-                    onClick={() => setSelectedProductId(product.id)}
-                  >
-                    <span className="font-medium">{product.name}</span>
-                    {product.description && (
-                      <span className="text-xs opacity-70 mt-1 line-clamp-2">
-                        {product.description}
-                      </span>
-                    )}
-                  </Button>
-                ))}
-              </div>
-
-              {products.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum produto cadastrado. Cadastre produtos nas Configurações.
-                </p>
-              )}
+              <ProductSelector
+                products={products}
+                selectedProductId={selectedProductId}
+                onSelect={(product) => setSelectedProductId(product.id)}
+                placeholder="Buscar produto por nome..."
+              />
 
               <Separator />
 
