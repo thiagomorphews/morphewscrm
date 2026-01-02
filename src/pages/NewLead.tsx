@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
 import { MultiSelect } from '@/components/MultiSelect';
 import { AddressFields } from '@/components/AddressFields';
+import { DuplicateWhatsAppDialog } from '@/components/DuplicateWhatsAppDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,6 +26,7 @@ import { useLeadSources, useLeadProducts } from '@/hooks/useConfigOptions';
 import { useDeliveryRegions, useActiveShippingCarriers, DELIVERY_TYPES, DeliveryType } from '@/hooks/useDeliveryConfig';
 import { leadSchema } from '@/lib/validations';
 import { toast } from '@/hooks/use-toast';
+import { checkDuplicateWhatsApp, DuplicateLeadInfo } from '@/hooks/useCheckDuplicateWhatsApp';
 
 export default function NewLead() {
   const navigate = useNavigate();
@@ -38,6 +40,8 @@ export default function NewLead() {
   const { data: deliveryRegions = [] } = useDeliveryRegions();
   const shippingCarriers = useActiveShippingCarriers();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [duplicateLead, setDuplicateLead] = useState<DuplicateLeadInfo | null>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   
   // Permission check
   const canCreateLead = permissions?.leads_create;
@@ -143,6 +147,14 @@ export default function NewLead() {
       });
       return;
     }
+
+    // Check for duplicate WhatsApp in the same organization
+    const duplicate = await checkDuplicateWhatsApp(formData.whatsapp.trim());
+    if (duplicate) {
+      setDuplicateLead(duplicate);
+      setShowDuplicateDialog(true);
+      return;
+    }
     
     try {
       await createLead.mutateAsync({
@@ -193,6 +205,11 @@ export default function NewLead() {
 
   return (
     <Layout>
+      <DuplicateWhatsAppDialog
+        open={showDuplicateDialog}
+        onOpenChange={setShowDuplicateDialog}
+        duplicateLead={duplicateLead}
+      />
       <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
