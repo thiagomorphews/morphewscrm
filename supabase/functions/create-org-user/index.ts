@@ -209,12 +209,39 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    // Check if user already exists
+    // Check if user already exists in auth.users
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
     const existingUser = existingUsers?.users?.find(u => u.email === ownerEmail);
     
     if (existingUser) {
-      throw new Error("Já existe um usuário com este email");
+      throw new Error("Este email já está cadastrado em outra empresa. Por favor, use outro email.");
+    }
+
+    // Check if email already exists in any organization's profiles
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, organization_id')
+      .eq('email', ownerEmail)
+      .maybeSingle();
+
+    if (existingProfile) {
+      throw new Error("Este email já está cadastrado em outra empresa. Por favor, use outro email.");
+    }
+
+    // Check if WhatsApp already exists in any organization (if provided)
+    if (ownerPhone) {
+      const normalizedPhoneCheck = normalizeWhatsApp(ownerPhone);
+      if (normalizedPhoneCheck) {
+        const { data: existingWhatsApp } = await supabaseAdmin
+          .from('profiles')
+          .select('id, whatsapp, organization_id')
+          .eq('whatsapp', normalizedPhoneCheck)
+          .maybeSingle();
+
+        if (existingWhatsApp) {
+          throw new Error("Este WhatsApp já está cadastrado em outra empresa. Por favor, use outro número.");
+        }
+      }
     }
 
     // Generate temporary password
