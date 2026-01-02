@@ -2072,6 +2072,7 @@ export type Database = {
           deliveries_view_all: boolean
           deliveries_view_own: boolean
           id: string
+          instagram_view: boolean
           leads_create: boolean
           leads_delete: boolean
           leads_edit: boolean
@@ -2091,6 +2092,7 @@ export type Database = {
           sales_view: boolean
           settings_manage: boolean
           settings_view: boolean
+          team_view: boolean
           updated_at: string
           user_id: string
           whatsapp_send: boolean
@@ -2101,6 +2103,7 @@ export type Database = {
           deliveries_view_all?: boolean
           deliveries_view_own?: boolean
           id?: string
+          instagram_view?: boolean
           leads_create?: boolean
           leads_delete?: boolean
           leads_edit?: boolean
@@ -2120,6 +2123,7 @@ export type Database = {
           sales_view?: boolean
           settings_manage?: boolean
           settings_view?: boolean
+          team_view?: boolean
           updated_at?: string
           user_id: string
           whatsapp_send?: boolean
@@ -2130,6 +2134,7 @@ export type Database = {
           deliveries_view_all?: boolean
           deliveries_view_own?: boolean
           id?: string
+          instagram_view?: boolean
           leads_create?: boolean
           leads_delete?: boolean
           leads_edit?: boolean
@@ -2149,6 +2154,7 @@ export type Database = {
           sales_view?: boolean
           settings_manage?: boolean
           settings_view?: boolean
+          team_view?: boolean
           updated_at?: string
           user_id?: string
           whatsapp_send?: boolean
