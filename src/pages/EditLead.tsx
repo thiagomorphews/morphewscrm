@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout/Layout';
 import { StarRating } from '@/components/StarRating';
 import { MultiSelect } from '@/components/MultiSelect';
 import { AddressFields } from '@/components/AddressFields';
+import { DuplicateWhatsAppDialog } from '@/components/DuplicateWhatsAppDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +22,7 @@ import { useLead, useUpdateLead } from '@/hooks/useLeads';
 import { useUsers } from '@/hooks/useUsers';
 import { useLeadSources, useLeadProducts } from '@/hooks/useConfigOptions';
 import { useDeliveryRegions, useActiveShippingCarriers, DELIVERY_TYPES, DeliveryType } from '@/hooks/useDeliveryConfig';
+import { checkDuplicateWhatsApp, DuplicateLeadInfo } from '@/hooks/useCheckDuplicateWhatsApp';
 
 export default function EditLead() {
   const { id } = useParams();
@@ -32,6 +34,8 @@ export default function EditLead() {
   const { data: leadProducts = [] } = useLeadProducts();
   const { data: deliveryRegions = [] } = useDeliveryRegions();
   const shippingCarriers = useActiveShippingCarriers();
+  const [duplicateLead, setDuplicateLead] = useState<DuplicateLeadInfo | null>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -119,6 +123,14 @@ export default function EditLead() {
     
     if (!id) return;
 
+    // Check for duplicate WhatsApp in the same organization (excluding current lead)
+    const duplicate = await checkDuplicateWhatsApp(formData.whatsapp.trim(), id);
+    if (duplicate) {
+      setDuplicateLead(duplicate);
+      setShowDuplicateDialog(true);
+      return;
+    }
+
     await updateLead.mutateAsync({
       id,
       name: formData.name,
@@ -175,6 +187,11 @@ export default function EditLead() {
 
   return (
     <Layout>
+      <DuplicateWhatsAppDialog
+        open={showDuplicateDialog}
+        onOpenChange={setShowDuplicateDialog}
+        duplicateLead={duplicateLead}
+      />
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
