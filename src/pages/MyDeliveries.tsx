@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -39,6 +40,10 @@ import {
   ChevronRight,
   MessageCircle,
   RotateCcw,
+  Upload,
+  DollarSign,
+  AlertTriangle,
+  CreditCard,
 } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -166,15 +171,75 @@ function DeliveryCard({
   onMarkNotDelivered,
   onOpenMaps,
   onOpenWhatsApp,
-  isDragging
+  onUploadPaymentProof,
+  isDragging,
+  isUploadingProof
 }: { 
   sale: Sale; 
   onMarkDelivered: () => void;
   onMarkNotDelivered: () => void;
   onOpenMaps: () => void;
   onOpenWhatsApp: () => void;
+  onUploadPaymentProof: (file: File) => Promise<void>;
   isDragging?: boolean;
+  isUploadingProof?: boolean;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await onUploadPaymentProof(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  // Get payment status info
+  const getPaymentStatusInfo = () => {
+    const hasProof = !!sale.payment_proof_url;
+    switch (sale.payment_status) {
+      case 'paid_now':
+        return { 
+          label: 'Pago', 
+          icon: CheckCircle, 
+          className: 'bg-green-100 text-green-700 border-green-200',
+          showUpload: false 
+        };
+      case 'will_pay_before':
+        return hasProof 
+          ? { 
+              label: 'Comprovante anexado', 
+              icon: CheckCircle, 
+              className: 'bg-green-100 text-green-700 border-green-200',
+              showUpload: false 
+            }
+          : { 
+              label: 'Aguardando pagamento', 
+              icon: AlertTriangle, 
+              className: 'bg-amber-100 text-amber-700 border-amber-200',
+              showUpload: true 
+            };
+      case 'not_paid':
+      default:
+        return hasProof 
+          ? { 
+              label: 'Comprovante anexado', 
+              icon: CheckCircle, 
+              className: 'bg-green-100 text-green-700 border-green-200',
+              showUpload: false 
+            }
+          : { 
+              label: 'Não pago', 
+              icon: DollarSign, 
+              className: 'bg-slate-100 text-slate-700 border-slate-200',
+              showUpload: true 
+            };
+    }
+  };
+  
+  const paymentInfo = getPaymentStatusInfo();
   const {
     attributes,
     listeners,
@@ -270,10 +335,52 @@ function DeliveryCard({
         )}
 
         {/* Products summary */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Package className="w-4 h-4" />
-          <span>{sale.items?.length || 0} produto(s)</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Package className="w-4 h-4 text-primary" />
+            <span>{sale.items?.reduce((sum, i) => sum + i.quantity, 0) || 0} produto(s)</span>
+          </div>
+          {sale.items && sale.items.length > 0 && (
+            <ul className="ml-6 text-xs text-muted-foreground space-y-0.5">
+              {sale.items.map((item, idx) => (
+                <li key={idx}>
+                  {item.quantity}x {item.product_name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+        
+        {/* Payment status */}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={`text-xs ${paymentInfo.className}`}>
+            <paymentInfo.icon className="w-3 h-3 mr-1" />
+            {paymentInfo.label}
+          </Badge>
+        </div>
+        
+        {/* Upload payment proof button for motoboy */}
+        {paymentInfo.showUpload && (
+          <div>
+            <input 
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingProof}
+            >
+              <Upload className="w-3.5 h-3.5 mr-1.5" />
+              {isUploadingProof ? 'Enviando...' : 'Anexar comprovante de pagamento'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}
@@ -376,6 +483,38 @@ export default function MyDeliveries() {
   const [notDeliveredDialogOpen, setNotDeliveredDialogOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [localOrder, setLocalOrder] = useState<Record<string, string[]>>({});
+  const [uploadingSaleId, setUploadingSaleId] = useState<string | null>(null);
+
+  // Handle payment proof upload by motoboy
+  const handleUploadPaymentProof = useCallback(async (saleId: string, file: File) => {
+    setUploadingSaleId(saleId);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${saleId}/payment-proof-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('sales-documents')
+        .upload(fileName, file);
+      
+      if (uploadError) throw uploadError;
+      
+      // Update sale with payment proof URL
+      await updateSale.mutateAsync({
+        id: saleId,
+        data: {
+          payment_proof_url: fileName,
+        }
+      });
+      
+      toast.success('Comprovante enviado com sucesso!');
+      refetch();
+    } catch (error) {
+      console.error('Erro ao enviar comprovante:', error);
+      toast.error('Erro ao enviar comprovante');
+    } finally {
+      setUploadingSaleId(null);
+    }
+  }, [updateSale, refetch]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -605,6 +744,8 @@ export default function MyDeliveries() {
                         }}
                         onOpenMaps={() => openMaps(sale)}
                         onOpenWhatsApp={() => openWhatsApp(sale.lead?.whatsapp || '')}
+                        onUploadPaymentProof={(file) => handleUploadPaymentProof(sale.id, file)}
+                        isUploadingProof={uploadingSaleId === sale.id}
                       />
                     ))}
                   </div>
