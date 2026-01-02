@@ -725,6 +725,8 @@ export type Database = {
           category: string
           cost_cents: number | null
           created_at: string
+          crosssell_product_1_id: string | null
+          crosssell_product_2_id: string | null
           description: string | null
           id: string
           is_active: boolean
@@ -751,6 +753,8 @@ export type Database = {
           category?: string
           cost_cents?: number | null
           created_at?: string
+          crosssell_product_1_id?: string | null
+          crosssell_product_2_id?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
@@ -777,6 +781,8 @@ export type Database = {
           category?: string
           cost_cents?: number | null
           created_at?: string
+          crosssell_product_1_id?: string | null
+          crosssell_product_2_id?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
@@ -800,6 +806,20 @@ export type Database = {
           usage_period_days?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lead_products_crosssell_product_1_id_fkey"
+            columns: ["crosssell_product_1_id"]
+            isOneToOne: false
+            referencedRelation: "lead_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_products_crosssell_product_2_id_fkey"
+            columns: ["crosssell_product_2_id"]
+            isOneToOne: false
+            referencedRelation: "lead_products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lead_products_organization_id_fkey"
             columns: ["organization_id"]
