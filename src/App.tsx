@@ -118,11 +118,11 @@ const App = () => (
                 }
               />
               
-              {/* Instagram - available to all authenticated */}
+              {/* Instagram - require instagram_view */}
               <Route
                 path="/instagram"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requiredPermissions={['instagram_view']}>
                     <InstagramDMs />
                   </ProtectedRoute>
                 }
@@ -182,11 +182,11 @@ const App = () => (
                 }
               />
               
-              {/* Team - any authenticated user can view their team */}
+              {/* Team - require team_view */}
               <Route
                 path="/equipe"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute requiredPermissions={['team_view']}>
                     <Team />
                   </ProtectedRoute>
                 }

@@ -48,6 +48,8 @@ export function Sidebar() {
   const canSeeReceptive = receptiveAccess?.hasAccess;
   const canSeeFinanceiro = isAdmin || permissions?.reports_view || permissions?.sales_confirm_payment;
   const canSeeWhatsApp = isAdmin || permissions?.whatsapp_view;
+  const canSeeTeam = isAdmin || permissions?.team_view;
+  const canSeeInstagram = isAdmin || permissions?.instagram_view;
   
   // WhatsApp DMs is visible for master admin or if organization has it enabled
   const canSeeWhatsAppDMs = (isMasterAdmin || orgSettings?.whatsapp_dms_enabled) && canSeeWhatsApp;
@@ -91,8 +93,8 @@ export function Sidebar() {
     // WhatsApp 2.0
     { icon: MessageSquare, label: 'WhatsApp 2.0', path: '/whatsapp-v2', badge: 'Novo', visible: canSeeWhatsApp },
     
-    // Team (everyone can view their team)
-    { icon: UsersRound, label: 'Minha Equipe', path: '/equipe', visible: true },
+    // Team (permission controlled)
+    { icon: UsersRound, label: 'Minha Equipe', path: '/equipe', visible: canSeeTeam },
     
     // Admin only
     { icon: UserPlus, label: 'Nova Organização', path: '/cadastro', visible: isAdmin },
@@ -101,8 +103,8 @@ export function Sidebar() {
     // Master admin only
     { icon: Crown, label: 'Super Admin', path: '/super-admin', visible: isMasterAdmin },
     
-    // Instagram (coming soon)
-    { icon: Instagram, label: 'Instagram DMs', path: '/instagram', badge: 'Em breve', visible: true },
+    // Instagram (permission controlled)
+    { icon: Instagram, label: 'Instagram DMs', path: '/instagram', badge: 'Em breve', visible: canSeeInstagram },
     
     // Settings
     { icon: Settings, label: 'Configurações', path: '/settings', visible: canSeeSettings },

@@ -45,6 +45,10 @@ export interface UserPermissions {
   // Modules
   receptive_module_access: boolean;
   
+  // Team & Instagram
+  team_view: boolean;
+  instagram_view: boolean;
+  
   created_at: string;
   updated_at: string;
 }
@@ -80,9 +84,13 @@ export const PERMISSION_LABELS: Record<keyof Omit<UserPermissions, 'id' | 'organ
   deliveries_view_all: { label: 'Ver Todas Entregas', description: 'Ver todas as entregas', group: 'Entregas' },
   
   receptive_module_access: { label: 'Módulo Receptivo', description: 'Acesso ao módulo de atendimento receptivo', group: 'Módulos' },
+  
+  // Equipe e Instagram
+  team_view: { label: 'Ver Minha Equipe', description: 'Visualizar página Minha Equipe', group: 'Equipe' },
+  instagram_view: { label: 'Ver Instagram DMs', description: 'Acessar Instagram DMs', group: 'Equipe' },
 };
 
-export const PERMISSION_GROUPS = ['Leads', 'Vendas', 'Financeiro', 'WhatsApp', 'Produtos', 'Configurações', 'Entregas', 'Módulos'];
+export const PERMISSION_GROUPS = ['Leads', 'Vendas', 'Financeiro', 'WhatsApp', 'Produtos', 'Configurações', 'Entregas', 'Módulos', 'Equipe'];
 
 // Hook to get current user's permissions
 export function useMyPermissions() {
@@ -255,6 +263,8 @@ export function useApplyRoleDefaults() {
           deliveries_view_own: permsObj.deliveries_view_own ?? false,
           deliveries_view_all: permsObj.deliveries_view_all ?? false,
           receptive_module_access: permsObj.receptive_module_access ?? false,
+          team_view: permsObj.team_view ?? false,
+          instagram_view: permsObj.instagram_view ?? false,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'organization_id,user_id',

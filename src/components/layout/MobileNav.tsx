@@ -53,6 +53,8 @@ export function MobileNav() {
   const canSeeReceptive = receptiveAccess?.hasAccess;
   const canSeeFinanceiro = isAdmin || permissions?.reports_view || permissions?.sales_confirm_payment;
   const canSeeWhatsApp = isAdmin || permissions?.whatsapp_view;
+  const canSeeTeam = isAdmin || permissions?.team_view;
+  const canSeeInstagram = isAdmin || permissions?.instagram_view;
   
   // WhatsApp DMs is visible for master admin or if organization has it enabled
   const canSeeWhatsAppDMs = (isMasterAdmin || orgSettings?.whatsapp_dms_enabled) && canSeeWhatsApp;
@@ -73,7 +75,7 @@ export function MobileNav() {
   // Menu items - full menu
   const menuNavItems = [
     { icon: Headphones, label: 'Add Receptivo', path: '/add-receptivo', visible: canSeeReceptive },
-    { icon: UsersRound, label: 'Minha Equipe', path: '/equipe', visible: true },
+    { icon: UsersRound, label: 'Minha Equipe', path: '/equipe', visible: canSeeTeam },
     { icon: Package, label: 'Produtos', path: '/produtos', visible: canSeeProducts },
     { icon: DollarSign, label: 'Financeiro', path: '/financeiro', visible: canSeeFinanceiro },
     { icon: FileText, label: 'Relatórios', path: '/relatorios/vendas', visible: canSeeReports },
@@ -84,7 +86,7 @@ export function MobileNav() {
     { icon: UserPlus, label: 'Cadastrar Usuário', path: '/cadastro', visible: isAdmin },
     { icon: ShoppingCart, label: 'Interessados', path: '/interessados', visible: isAdmin },
     { icon: Crown, label: 'Super Admin', path: '/super-admin', visible: isMasterAdmin },
-    { icon: Instagram, label: 'Instagram DMs', path: '/instagram', badge: 'Em breve', visible: true },
+    { icon: Instagram, label: 'Instagram DMs', path: '/instagram', badge: 'Em breve', visible: canSeeInstagram },
     { icon: Settings, label: 'Configurações', path: '/settings', visible: canSeeSettings },
   ].filter(item => item.visible);
 
