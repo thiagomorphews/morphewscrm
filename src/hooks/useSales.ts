@@ -78,6 +78,9 @@ export interface Sale {
     city: string | null;
     state: string | null;
     cep: string | null;
+    secondary_phone: string | null;
+    delivery_notes: string | null;
+    google_maps_link: string | null;
   };
   items?: SaleItem[];
   created_by_profile?: {
@@ -225,7 +228,7 @@ export function useSales(filters?: { status?: SaleStatus }) {
         .from('sales')
         .select(`
           *,
-          lead:leads(id, name, whatsapp, email, street, street_number, complement, neighborhood, city, state, cep)
+          lead:leads(id, name, whatsapp, email, street, street_number, complement, neighborhood, city, state, cep, secondary_phone, delivery_notes, google_maps_link)
         `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
@@ -281,7 +284,7 @@ export function useSale(id: string | undefined) {
         .from('sales')
         .select(`
           *,
-          lead:leads(id, name, whatsapp, email, street, street_number, complement, neighborhood, city, state, cep)
+          lead:leads(id, name, whatsapp, email, street, street_number, complement, neighborhood, city, state, cep, secondary_phone, delivery_notes, google_maps_link)
         `)
         .eq('id', id)
         .eq('organization_id', organizationId)

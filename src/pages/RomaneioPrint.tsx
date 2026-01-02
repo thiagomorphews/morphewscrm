@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Printer, MapPin, Package, Truck, Store } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSale, formatCurrency, getStatusLabel } from '@/hooks/useSales';
@@ -19,10 +19,12 @@ export default function RomaneioPrint() {
   
   const [sellerName, setSellerName] = useState<string | null>(null);
   const [deliveryUserName, setDeliveryUserName] = useState<string | null>(null);
+  const [regionName, setRegionName] = useState<string | null>(null);
+  const [carrierName, setCarrierName] = useState<string | null>(null);
 
-  // Fetch seller and delivery user names
+  // Fetch seller, delivery user, region and carrier names
   useEffect(() => {
-    const fetchUserNames = async () => {
+    const fetchAdditionalData = async () => {
       if (!sale) return;
 
       // Fetch seller name
@@ -50,9 +52,35 @@ export default function RomaneioPrint() {
           setDeliveryUserName(`${deliveryProfile.first_name} ${deliveryProfile.last_name}`);
         }
       }
+
+      // Fetch region name
+      if (sale.delivery_region_id) {
+        const { data: region } = await supabase
+          .from('delivery_regions')
+          .select('name')
+          .eq('id', sale.delivery_region_id)
+          .maybeSingle();
+        
+        if (region) {
+          setRegionName(region.name);
+        }
+      }
+
+      // Fetch carrier name
+      if (sale.shipping_carrier_id) {
+        const { data: carrier } = await supabase
+          .from('shipping_carriers')
+          .select('name')
+          .eq('id', sale.shipping_carrier_id)
+          .maybeSingle();
+        
+        if (carrier) {
+          setCarrierName(carrier.name);
+        }
+      }
     };
 
-    fetchUserNames();
+    fetchAdditionalData();
   }, [sale]);
 
   const handlePrint = () => {
@@ -88,15 +116,41 @@ export default function RomaneioPrint() {
     );
   }
 
-  const qrData = `${window.location.origin}/vendas/${sale.id}`;
+  const saleQrData = `${window.location.origin}/vendas/${sale.id}`;
+  const googleMapsLink = sale.lead?.google_maps_link;
+  const deliveryNotes = sale.lead?.delivery_notes;
 
-  // Determine delivery type label
-  const getDeliveryTypeLabel = () => {
-    if (!sale.delivery_type || sale.delivery_type === 'pickup') return 'RETIRADA NO BALCÃO';
-    if (sale.delivery_type === 'motoboy') return 'TELE-ENTREGA (MOTOBOY)';
-    if (sale.delivery_type === 'carrier') return 'TRANSPORTADORA';
-    return 'TELE-ENTREGA';
+  // Format delivery date and shift
+  const getShiftLabel = (shift: string | null) => {
+    if (!shift) return '';
+    const shifts: Record<string, string> = {
+      morning: 'MANHÃ',
+      afternoon: 'TARDE',
+      full_day: 'DIA TODO',
+    };
+    return shifts[shift] || shift.toUpperCase();
   };
+
+  const formattedDeliveryDate = sale.scheduled_delivery_date 
+    ? format(new Date(sale.scheduled_delivery_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+    : null;
+
+  // Determine delivery type label and icon
+  const getDeliveryInfo = () => {
+    if (!sale.delivery_type || sale.delivery_type === 'pickup') {
+      return { label: 'RETIRADA NO BALCÃO', icon: Store };
+    }
+    if (sale.delivery_type === 'motoboy') {
+      return { label: `TELE-ENTREGA (MOTOBOY)${regionName ? ` - ${regionName}` : ''}`, icon: Truck };
+    }
+    if (sale.delivery_type === 'carrier') {
+      return { label: `TRANSPORTADORA${carrierName ? ` - ${carrierName}` : ''}`, icon: Package };
+    }
+    return { label: 'TELE-ENTREGA', icon: Truck };
+  };
+
+  const deliveryInfo = getDeliveryInfo();
+  const DeliveryIcon = deliveryInfo.icon;
 
   return (
     <>
@@ -123,9 +177,6 @@ export default function RomaneioPrint() {
                 <strong>VENDEDOR:</strong> {sellerName || profile?.first_name + ' ' + profile?.last_name}
               </p>
               <p className="text-sm">
-                <strong>DIGITADOR:</strong> {profile?.first_name} {profile?.last_name}
-              </p>
-              <p className="text-sm">
                 <strong>DATA DE EMISSÃO:</strong> {format(new Date(sale.created_at), "dd/MM/yyyy - HH:mm:ss", { locale: ptBR })}
               </p>
               <p className="text-sm">
@@ -134,10 +185,10 @@ export default function RomaneioPrint() {
             </div>
             <div className="text-right text-sm">
               {deliveryUserName && (
-                <p><strong>ENTREGADOR:</strong> {deliveryUserName}</p>
+                <p className="font-semibold"><strong>ENTREGADOR:</strong> {deliveryUserName}</p>
               )}
-              <p><strong>DATA DE ENTREGA:</strong> ___/___/______</p>
-              <p><strong>TURNO:</strong> _________________</p>
+              <p><strong>DATA DE ENTREGA:</strong> {formattedDeliveryDate || '___/___/______'}</p>
+              <p><strong>TURNO:</strong> {getShiftLabel(sale.scheduled_delivery_shift) || '_________________'}</p>
             </div>
           </div>
         </div>
@@ -148,6 +199,7 @@ export default function RomaneioPrint() {
           <p className="font-semibold">{sale.lead?.name}</p>
           <p className="text-sm">
             <strong>FONE/CEL:</strong> {sale.lead?.whatsapp}
+            {sale.lead?.secondary_phone && <span> / {sale.lead.secondary_phone}</span>}
             {sale.lead?.email && <span> - <strong>EMAIL:</strong> {sale.lead.email}</span>}
           </p>
         </div>
@@ -162,26 +214,54 @@ export default function RomaneioPrint() {
               <p><strong>CEP:</strong> {sale.lead.cep} - {sale.lead.city}/{sale.lead.state} - Brasil</p>
             </>
           ) : (
-            <p className="text-muted-foreground">Endereço não cadastrado</p>
+            <p className="text-gray-500">Endereço não cadastrado</p>
           )}
         </div>
 
-        {/* QR Code and Reference */}
-        <div className="border-2 border-black p-4 mb-4 flex justify-between items-center">
-          <div>
-            <h2 className="font-bold text-lg mb-2"># REFERÊNCIA PARA ENTREGA</h2>
-            <p className="text-sm text-muted-foreground">_________________________________</p>
-            <p className="text-xs mt-2">APONTE SEU CELULAR PARA ESTE CÓDIGO:</p>
-          </div>
-          <div className="flex-shrink-0">
-            <QRCodeSVG value={qrData} size={80} />
+        {/* Delivery Reference & QR Codes */}
+        <div className="border-2 border-black p-4 mb-4">
+          <h2 className="font-bold text-lg border-b border-black pb-1 mb-2"># REFERÊNCIA PARA ENTREGA</h2>
+          
+          {deliveryNotes ? (
+            <p className="mb-3 p-2 bg-gray-100 rounded">{deliveryNotes}</p>
+          ) : (
+            <p className="text-sm text-gray-500 mb-3">_________________________________</p>
+          )}
+
+          <div className="flex justify-between items-center gap-4">
+            <div className="flex-1">
+              <p className="text-xs font-semibold mb-1">LINK DA VENDA:</p>
+              <div className="flex items-center gap-2">
+                <QRCodeSVG value={saleQrData} size={60} />
+                <p className="text-xs text-gray-500">Aponte para ver detalhes da venda</p>
+              </div>
+            </div>
+            
+            {googleMapsLink && (
+              <div className="flex-1">
+                <p className="text-xs font-semibold mb-1 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  LOCALIZAÇÃO NO MAPA:
+                </p>
+                <div className="flex items-center gap-2">
+                  <QRCodeSVG value={googleMapsLink} size={60} />
+                  <p className="text-xs text-gray-500">Aponte para abrir no Google Maps</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Delivery Type */}
         <div className="border-2 border-black p-4 mb-4">
           <h2 className="font-bold text-lg"># TIPO DE ENTREGA</h2>
-          <p className="font-semibold">{getDeliveryTypeLabel()}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <DeliveryIcon className="w-5 h-5" />
+            <p className="font-semibold">{deliveryInfo.label}</p>
+          </div>
+          {sale.shipping_cost_cents && sale.shipping_cost_cents > 0 && (
+            <p className="text-sm mt-1"><strong>FRETE:</strong> {formatCurrency(sale.shipping_cost_cents)}</p>
+          )}
         </div>
 
         {/* Products Table */}
@@ -190,17 +270,18 @@ export default function RomaneioPrint() {
             <thead>
               <tr className="border-b border-black bg-gray-100">
                 <th className="p-2 text-left border-r border-black">PRODUTO</th>
-                <th className="p-2 text-left border-r border-black">DESCRIÇÃO</th>
-                <th className="p-2 text-center border-r border-black">QUANTIDADE</th>
-                <th className="p-2 text-right border-r border-black">VALOR UNIT.</th>
-                <th className="p-2 text-right">VALOR TOTAL</th>
+                <th className="p-2 text-center border-r border-black w-20">QTD</th>
+                <th className="p-2 text-right border-r border-black w-24">UNIT.</th>
+                <th className="p-2 text-right w-24">TOTAL</th>
               </tr>
             </thead>
             <tbody>
               {sale.items?.map((item, index) => (
                 <tr key={item.id} className={index < (sale.items?.length || 0) - 1 ? 'border-b border-black' : ''}>
-                  <td className="p-2 border-r border-black">{item.product_id.slice(0, 6)}</td>
-                  <td className="p-2 border-r border-black">{item.product_name}</td>
+                  <td className="p-2 border-r border-black">
+                    {item.product_name}
+                    {item.notes && <span className="text-xs text-gray-500 block">({item.notes})</span>}
+                  </td>
                   <td className="p-2 text-center border-r border-black">{item.quantity}</td>
                   <td className="p-2 text-right border-r border-black">{formatCurrency(item.unit_price_cents)}</td>
                   <td className="p-2 text-right">{formatCurrency(item.total_cents)}</td>
@@ -213,49 +294,51 @@ export default function RomaneioPrint() {
         {/* Payment Info */}
         <div className="border-2 border-black p-4 mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span><strong>EXIGE RECEITA:</strong> NÃO</span>
-            <span><strong>VENDA ESTA PAGA, É SÓ ENTREGAR?:</strong> {sale.payment_confirmed_at ? 'SIM' : 'NÃO'}</span>
+            <span><strong>VENDA ESTÁ PAGA?:</strong> {sale.payment_confirmed_at ? 'SIM ✓' : 'NÃO'}</span>
+            {sale.payment_method && <span><strong>FORMA:</strong> {sale.payment_method}</span>}
           </div>
-          <div className="text-right text-xl font-bold">
+          {sale.discount_cents > 0 && (
+            <div className="text-sm mb-1">
+              <span><strong>DESCONTO:</strong> -{formatCurrency(sale.discount_cents)}</span>
+            </div>
+          )}
+          <div className="text-right text-xl font-bold border-t border-black pt-2 mt-2">
             TOTAL DO ROMANEIO: {formatCurrency(sale.total_cents)}
           </div>
         </div>
 
         {/* Delivery Status Options */}
         <div className="border-2 border-black p-4 mb-4">
-          <div className="flex flex-wrap gap-4 text-sm">
+          <h2 className="font-bold text-sm mb-2">OCORRÊNCIAS DE ENTREGA:</h2>
+          <div className="flex flex-wrap gap-3 text-xs">
             <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
-              Sem receita
+              <span className="w-3 h-3 border border-black inline-block"></span>
+              Entregue
             </label>
             <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
-              Sem notificação
-            </label>
-            <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
-              Sem dinheiro
-            </label>
-            <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
-              Endereço insuficiente
-            </label>
-            <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
-              Fora do horário
-            </label>
-            <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
+              <span className="w-3 h-3 border border-black inline-block"></span>
               Ausente
             </label>
             <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
+              <span className="w-3 h-3 border border-black inline-block"></span>
               Recusou
             </label>
-          </div>
-          <div className="mt-2 text-sm">
             <label className="flex items-center gap-1">
-              <span className="w-4 h-4 border border-black inline-block"></span>
+              <span className="w-3 h-3 border border-black inline-block"></span>
+              Endereço não encontrado
+            </label>
+            <label className="flex items-center gap-1">
+              <span className="w-3 h-3 border border-black inline-block"></span>
+              Fora do horário
+            </label>
+            <label className="flex items-center gap-1">
+              <span className="w-3 h-3 border border-black inline-block"></span>
+              Reagendado
+            </label>
+          </div>
+          <div className="mt-2 text-xs">
+            <label className="flex items-center gap-1">
+              <span className="w-3 h-3 border border-black inline-block"></span>
               Outro: _______________________________________________
             </label>
           </div>
@@ -265,11 +348,11 @@ export default function RomaneioPrint() {
         <div className="border-2 border-black p-4">
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="mb-8">Conferência:</p>
+              <p className="mb-8">Conferência (Expedição):</p>
               <div className="border-t border-black"></div>
             </div>
             <div>
-              <p className="mb-8">Destinatário:</p>
+              <p className="mb-8">Recebido por:</p>
               <div className="border-t border-black"></div>
             </div>
             <div>
