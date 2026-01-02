@@ -629,7 +629,17 @@ export function useMyDeliveries() {
         .order('dispatched_at', { ascending: false });
 
       if (error) throw error;
-      return data as Sale[];
+
+      // Fetch items for each sale
+      const salesWithItems = await Promise.all((data || []).map(async (sale) => {
+        const { data: items } = await supabase
+          .from('sale_items')
+          .select('*')
+          .eq('sale_id', sale.id);
+        return { ...sale, items: items || [] };
+      }));
+
+      return salesWithItems as Sale[];
     },
     enabled: !!user?.id,
   });
