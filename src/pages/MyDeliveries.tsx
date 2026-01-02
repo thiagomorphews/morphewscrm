@@ -44,6 +44,8 @@ import {
   DollarSign,
   AlertTriangle,
   CreditCard,
+  Camera,
+  MapPinned,
 } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO, isAfter, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -77,7 +79,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Return reasons dialog
+// Return reasons dialog with photo and location capture
 function NotDeliveredDialog({ 
   open, 
   onOpenChange, 
@@ -87,32 +89,103 @@ function NotDeliveredDialog({
   open: boolean; 
   onOpenChange: (open: boolean) => void;
   sale: Sale | null;
-  onConfirm: (reasonId: string, notes: string) => void;
+  onConfirm: (reasonId: string, notes: string, photoFile: File | null, location: {lat: number, lng: number} | null) => void;
 }) {
   const { data: returnReasons = [] } = useDeliveryReturnReasons();
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [notes, setNotes] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocalização não suportada pelo navegador');
+      return;
+    }
+
+    setIsGettingLocation(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setIsGettingLocation(false);
+        toast.success('Localização capturada!');
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('Permissão de localização negada');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('Localização indisponível');
+            break;
+          case error.TIMEOUT:
+            setLocationError('Tempo esgotado ao obter localização');
+            break;
+          default:
+            setLocationError('Erro ao obter localização');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleConfirm = () => {
     if (!selectedReason) {
       toast.error('Selecione um motivo');
       return;
     }
-    onConfirm(selectedReason, notes);
+    onConfirm(selectedReason, notes, photoFile, location);
+    // Reset states
     setSelectedReason('');
     setNotes('');
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setLocation(null);
+    setLocationError(null);
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    setSelectedReason('');
+    setNotes('');
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setLocation(null);
+    setLocationError(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-destructive flex items-center gap-2">
             <XCircle className="w-5 h-5" />
             Entrega não realizada
           </DialogTitle>
           <DialogDescription>
-            Selecione o motivo pelo qual a entrega não foi concluída
+            Registre os detalhes da tentativa de entrega
           </DialogDescription>
         </DialogHeader>
 
@@ -138,6 +211,109 @@ function NotDeliveredDialog({
             </Select>
           </div>
 
+          {/* Photo capture */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              Foto da casa do cliente
+              <span className="text-xs text-muted-foreground">(opcional)</span>
+            </Label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            {photoPreview ? (
+              <div className="relative">
+                <img 
+                  src={photoPreview} 
+                  alt="Foto da casa" 
+                  className="w-full h-32 object-cover rounded-lg border"
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-6 w-6"
+                  onClick={() => {
+                    setPhotoFile(null);
+                    setPhotoPreview(null);
+                    if (photoInputRef.current) photoInputRef.current.value = '';
+                  }}
+                >
+                  <XCircle className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => photoInputRef.current?.click()}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Tirar foto
+              </Button>
+            )}
+          </div>
+
+          {/* Location capture */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <MapPinned className="w-4 h-4" />
+              Localização atual
+              <span className="text-xs text-muted-foreground">(opcional)</span>
+            </Label>
+            {location ? (
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                      Localização capturada
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => setLocation(null)}
+                  >
+                    Limpar
+                  </Button>
+                </div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                </p>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGetLocation}
+                  disabled={isGettingLocation}
+                >
+                  {isGettingLocation ? (
+                    <>
+                      <Clock className="w-4 h-4 mr-2 animate-spin" />
+                      Obtendo localização...
+                    </>
+                  ) : (
+                    <>
+                      <MapPinned className="w-4 h-4 mr-2" />
+                      Capturar localização
+                    </>
+                  )}
+                </Button>
+                {locationError && (
+                  <p className="text-xs text-destructive">{locationError}</p>
+                )}
+              </>
+            )}
+          </div>
+
           <div>
             <Label>Observações</Label>
             <Textarea
@@ -148,10 +324,23 @@ function NotDeliveredDialog({
               rows={3}
             />
           </div>
+
+          {/* Warning about missing proof */}
+          {!photoFile && !location && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Sem foto e localização, a venda ficará marcada como "Voltou sem comprovação". 
+                  Recomendamos registrar para comprovar a tentativa de entrega.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button variant="destructive" onClick={handleConfirm}>
@@ -647,8 +836,33 @@ export default function MyDeliveries() {
     });
   };
 
-  const handleMarkNotDelivered = async (reasonId: string, notes: string) => {
+  const handleMarkNotDelivered = async (
+    reasonId: string, 
+    notes: string, 
+    photoFile: File | null, 
+    location: {lat: number, lng: number} | null
+  ) => {
     if (!selectedSale) return;
+
+    let returnPhotoUrl: string | null = null;
+
+    // Upload photo if provided
+    if (photoFile) {
+      try {
+        const fileExt = photoFile.name.split('.').pop();
+        const fileName = `${selectedSale.id}/return-photo-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('sales-documents')
+          .upload(fileName, photoFile);
+        
+        if (uploadError) throw uploadError;
+        returnPhotoUrl = fileName;
+      } catch (error) {
+        console.error('Erro ao enviar foto:', error);
+        toast.error('Erro ao enviar foto, mas o registro será salvo');
+      }
+    }
 
     await updateSale.mutateAsync({
       id: selectedSale.id,
@@ -656,6 +870,9 @@ export default function MyDeliveries() {
         status: 'returned',
         return_reason_id: reasonId,
         return_notes: notes || null,
+        return_photo_url: returnPhotoUrl,
+        return_latitude: location?.lat || null,
+        return_longitude: location?.lng || null,
       } as any
     });
 

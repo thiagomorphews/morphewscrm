@@ -745,11 +745,37 @@ export default function SaleDetail() {
                 )}
 
                 {sale.status === 'returned' && (sale as any).returned_at && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 space-y-2">
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Esta entrega voltou</p>
                     {(sale as any).return_notes && (
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">{(sale as any).return_notes}</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">{(sale as any).return_notes}</p>
                     )}
+                    
+                    {/* Tags for missing proof */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {!(sale as any).return_photo_url && (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800">
+                          VOLTOU SEM FOTO
+                        </Badge>
+                      )}
+                      {!(sale as any).return_latitude && (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800">
+                          VOLTOU SEM LOCALIZAÇÃO
+                        </Badge>
+                      )}
+                      {(sale as any).return_photo_url && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          FOTO ANEXADA
+                        </Badge>
+                      )}
+                      {(sale as any).return_latitude && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          LOCALIZAÇÃO REGISTRADA
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 )}
 

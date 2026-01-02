@@ -1955,7 +1955,10 @@ export type Database = {
           payment_notes: string | null
           payment_proof_url: string | null
           payment_status: string | null
+          return_latitude: number | null
+          return_longitude: number | null
           return_notes: string | null
+          return_photo_url: string | null
           return_reason_id: string | null
           returned_at: string | null
           returned_by: string | null
@@ -2004,7 +2007,10 @@ export type Database = {
           payment_notes?: string | null
           payment_proof_url?: string | null
           payment_status?: string | null
+          return_latitude?: number | null
+          return_longitude?: number | null
           return_notes?: string | null
+          return_photo_url?: string | null
           return_reason_id?: string | null
           returned_at?: string | null
           returned_by?: string | null
@@ -2053,7 +2059,10 @@ export type Database = {
           payment_notes?: string | null
           payment_proof_url?: string | null
           payment_status?: string | null
+          return_latitude?: number | null
+          return_longitude?: number | null
           return_notes?: string | null
+          return_photo_url?: string | null
           return_reason_id?: string | null
           returned_at?: string | null
           returned_by?: string | null
