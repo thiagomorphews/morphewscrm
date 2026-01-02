@@ -74,6 +74,10 @@ export interface Sale {
   return_notes: string | null;
   returned_at: string | null;
   returned_by: string | null;
+  // Return proof fields (photo and location when motoboy marks as not delivered)
+  return_photo_url: string | null;
+  return_latitude: number | null;
+  return_longitude: number | null;
   // Delivery position for route ordering
   delivery_position: number;
   // Joined data
