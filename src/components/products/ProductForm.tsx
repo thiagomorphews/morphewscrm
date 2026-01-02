@@ -24,9 +24,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Package, DollarSign } from 'lucide-react';
+import { Loader2, Package, DollarSign, Link2 } from 'lucide-react';
 import type { Product, ProductFormData } from '@/hooks/useProducts';
-import { PRODUCT_CATEGORIES } from '@/hooks/useProducts';
+import { PRODUCT_CATEGORIES, useProducts } from '@/hooks/useProducts';
 import { PriceKitsManager } from './PriceKitsManager';
 import type { ProductPriceKitFormData } from '@/hooks/useProductPriceKits';
 
@@ -54,6 +54,9 @@ const formSchema = z.object({
   stock_quantity: z.coerce.number().min(0).optional(),
   minimum_stock: z.coerce.number().min(0).optional(),
   track_stock: z.boolean().optional(),
+  // Cross-sell fields
+  crosssell_product_1_id: z.string().nullable().optional(),
+  crosssell_product_2_id: z.string().nullable().optional(),
 });
 
 interface ProductFormProps {
@@ -66,6 +69,10 @@ interface ProductFormProps {
 
 export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPriceKits = [] }: ProductFormProps) {
   const [priceKits, setPriceKits] = useState<ProductPriceKitFormData[]>(initialPriceKits);
+  const { data: allProducts = [] } = useProducts();
+  
+  // Filter out current product from cross-sell options
+  const crossSellOptions = allProducts.filter(p => p.id !== product?.id && p.is_active);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -90,6 +97,9 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPri
       stock_quantity: product?.stock_quantity || 0,
       minimum_stock: product?.minimum_stock || 0,
       track_stock: product?.track_stock ?? false,
+      // Cross-sell fields
+      crosssell_product_1_id: product?.crosssell_product_1_id || null,
+      crosssell_product_2_id: product?.crosssell_product_2_id || null,
     },
   });
 
@@ -431,6 +441,79 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPri
                 )}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Cross-Sell */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Cross-Sell (Venda Casada)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecione até 2 produtos para sugerir venda casada quando este produto for vendido.
+            </p>
+            
+            <FormField
+              control={form.control}
+              name="crosssell_product_1_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Produto Cross-Sell 1</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === 'none' ? null : value)} 
+                    value={field.value || 'none'}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um produto" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {crossSellOptions.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="crosssell_product_2_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Produto Cross-Sell 2</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === 'none' ? null : value)} 
+                    value={field.value || 'none'}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um produto" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {crossSellOptions.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
