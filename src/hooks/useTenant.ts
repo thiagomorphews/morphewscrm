@@ -175,36 +175,50 @@ export function useTenantMembers(tenantId?: string | null) {
     queryFn: async () => {
       if (!effectiveTenantId) return [];
 
-      const { data, error } = await supabase
+      // 1) Buscar membros da organização
+      const { data: members, error: membersError } = await supabase
         .from('organization_members')
-        .select(`
-          id,
-          user_id,
-          role,
-          can_see_all_leads,
-          created_at,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email,
-            avatar_url
-          )
-        `)
+        .select('id,user_id,role,can_see_all_leads,created_at')
         .eq('organization_id', effectiveTenantId)
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching tenant members:', error);
-        throw error;
+      if (membersError) {
+        console.error('Error fetching tenant members:', membersError);
+        throw membersError;
       }
 
-      return (data || []).map((member: any) => ({
+      const userIds = (members || []).map((m: any) => m.user_id).filter(Boolean);
+      if (userIds.length === 0) return [];
+
+      // 2) Buscar perfis por user_id (sem depender de FK no schema)
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id,first_name,last_name,email,avatar_url')
+        .in('user_id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching tenant member profiles:', profilesError);
+        throw profilesError;
+      }
+
+      const profileByUserId = new Map(
+        (profiles || []).map((p: any) => [p.user_id, p] as const)
+      );
+
+      return (members || []).map((member: any) => ({
         id: member.id,
         user_id: member.user_id,
         role: member.role,
         can_see_all_leads: member.can_see_all_leads,
         created_at: member.created_at,
-        profile: member.profiles,
+        profile: profileByUserId.get(member.user_id)
+          ? {
+              first_name: profileByUserId.get(member.user_id).first_name,
+              last_name: profileByUserId.get(member.user_id).last_name,
+              email: profileByUserId.get(member.user_id).email ?? null,
+              avatar_url: profileByUserId.get(member.user_id).avatar_url ?? null,
+            }
+          : undefined,
       })) as TenantMember[];
     },
     enabled: !!effectiveTenantId,
