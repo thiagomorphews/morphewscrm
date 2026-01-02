@@ -792,10 +792,12 @@ export type Database = {
           cpf_cnpj: string | null
           created_at: string
           created_by: string | null
+          delivery_notes: string | null
           delivery_region_id: string | null
           desired_products: string | null
           email: string | null
           followers: number | null
+          google_maps_link: string | null
           id: string
           instagram: string | null
           lead_source: string | null
@@ -832,10 +834,12 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          delivery_notes?: string | null
           delivery_region_id?: string | null
           desired_products?: string | null
           email?: string | null
           followers?: number | null
+          google_maps_link?: string | null
           id?: string
           instagram?: string | null
           lead_source?: string | null
@@ -872,10 +876,12 @@ export type Database = {
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          delivery_notes?: string | null
           delivery_region_id?: string | null
           desired_products?: string | null
           email?: string | null
           followers?: number | null
+          google_maps_link?: string | null
           id?: string
           instagram?: string | null
           lead_source?: string | null

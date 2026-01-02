@@ -101,6 +101,9 @@ export default function NewLead() {
     delivery_region_id: '',
     preferred_delivery_type: '' as DeliveryType | '',
     preferred_carrier_id: '',
+    // Delivery info
+    delivery_notes: '',
+    google_maps_link: '',
   });
 
   // Update formData when URL params or profile changes
@@ -190,7 +193,9 @@ export default function NewLead() {
         city: formData.city || null,
         state: formData.state || null,
         delivery_region_id: formData.delivery_region_id || null,
-      });
+        delivery_notes: formData.delivery_notes || null,
+        google_maps_link: formData.google_maps_link || null,
+      } as any);
       
       navigate('/leads');
     } catch (error) {
@@ -447,6 +452,32 @@ export default function NewLead() {
                   </Select>
                 </div>
               )}
+            </div>
+
+            {/* Delivery Notes Section */}
+            <div className="space-y-4 pt-4 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="delivery_notes">Observação de Entrega</Label>
+                <Textarea
+                  id="delivery_notes"
+                  value={formData.delivery_notes}
+                  onChange={(e) => updateField('delivery_notes', e.target.value)}
+                  placeholder="Referências para entrega: portão verde, casa de esquina, etc."
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">Informações importantes para o entregador localizar o endereço</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="google_maps_link">Link do Google Maps</Label>
+                <Input
+                  id="google_maps_link"
+                  value={formData.google_maps_link}
+                  onChange={(e) => updateField('google_maps_link', e.target.value)}
+                  placeholder="https://maps.google.com/..."
+                />
+                <p className="text-xs text-muted-foreground">Cole o link do Google Maps para gerar QR Code no romaneio</p>
+              </div>
             </div>
           </div>
 
