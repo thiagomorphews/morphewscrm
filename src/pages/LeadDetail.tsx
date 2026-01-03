@@ -32,6 +32,7 @@ import { StageChangeDialog } from '@/components/StageChangeDialog';
 import { LeadProductAnswersSection } from '@/components/leads/LeadProductAnswersSection';
 import { LeadSalesSection } from '@/components/leads/LeadSalesSection';
 import { LeadPostSaleHistory } from '@/components/leads/LeadPostSaleHistory';
+import { LeadSacSection } from '@/components/leads/LeadSacSection';
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
 import { useAddStageHistory } from '@/hooks/useLeadStageHistory';
 import { useUsers } from '@/hooks/useUsers';
@@ -645,6 +646,9 @@ export default function LeadDetail() {
 
             {/* Post-Sale History */}
             <LeadPostSaleHistory leadId={id!} />
+
+            {/* SAC - Chamados */}
+            <LeadSacSection leadId={id!} />
 
             {/* Stage History Timeline */}
             <LeadStageTimeline leadId={id!} currentStage={lead.stage} />

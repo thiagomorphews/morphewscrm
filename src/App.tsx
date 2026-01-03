@@ -41,6 +41,7 @@ import WhatsAppV2 from "./pages/WhatsAppV2";
 import TwoFactorAuth from "./pages/TwoFactorAuth";
 import PostSale from "./pages/PostSale";
 import SalesDashboard from "./pages/SalesDashboard";
+import SAC from "./pages/SAC";
 import NotFound from "./pages/NotFound";
 import AuthError from "./pages/AuthError";
 
@@ -164,6 +165,16 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredPermissions={['post_sale_view']}>
                     <PostSale />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* SAC - require sac_view */}
+              <Route
+                path="/sac"
+                element={
+                  <ProtectedRoute requiredPermissions={['sac_view']}>
+                    <SAC />
                   </ProtectedRoute>
                 }
               />
