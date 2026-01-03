@@ -1928,39 +1928,60 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_cartoon_url: string | null
+          avatar_fighter_url: string | null
+          avatar_horse_url: string | null
           avatar_url: string | null
           created_at: string
+          dream_prize: string | null
           email: string | null
+          favorite_chocolate: string | null
+          favorite_drink: string | null
           first_name: string
           id: string
           instagram: string | null
           last_name: string
+          nickname: string | null
           organization_id: string | null
           updated_at: string
           user_id: string
           whatsapp: string | null
         }
         Insert: {
+          avatar_cartoon_url?: string | null
+          avatar_fighter_url?: string | null
+          avatar_horse_url?: string | null
           avatar_url?: string | null
           created_at?: string
+          dream_prize?: string | null
           email?: string | null
+          favorite_chocolate?: string | null
+          favorite_drink?: string | null
           first_name: string
           id?: string
           instagram?: string | null
           last_name: string
+          nickname?: string | null
           organization_id?: string | null
           updated_at?: string
           user_id: string
           whatsapp?: string | null
         }
         Update: {
+          avatar_cartoon_url?: string | null
+          avatar_fighter_url?: string | null
+          avatar_horse_url?: string | null
           avatar_url?: string | null
           created_at?: string
+          dream_prize?: string | null
           email?: string | null
+          favorite_chocolate?: string | null
+          favorite_drink?: string | null
           first_name?: string
           id?: string
           instagram?: string | null
           last_name?: string
+          nickname?: string | null
           organization_id?: string | null
           updated_at?: string
           user_id?: string

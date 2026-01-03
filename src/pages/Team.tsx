@@ -96,6 +96,14 @@ export default function Team() {
     instagram: "",
     commissionPercentage: 0,
     extension: "",
+    // Gamification fields
+    avatarCartoonUrl: "",
+    avatarFighterUrl: "",
+    avatarHorseUrl: "",
+    favoriteDrink: "",
+    favoriteChocolate: "",
+    dreamPrize: "",
+    nickname: "",
   });
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState<string | null>(null);
@@ -115,6 +123,14 @@ export default function Team() {
     lastName: "",
     whatsapp: "",
     instagram: "",
+    // Gamification fields
+    avatarCartoonUrl: "",
+    avatarFighterUrl: "",
+    avatarHorseUrl: "",
+    favoriteDrink: "",
+    favoriteChocolate: "",
+    dreamPrize: "",
+    nickname: "",
   });
 
   // Fetch current user's full profile
@@ -141,6 +157,13 @@ export default function Team() {
         lastName: myFullProfile.last_name || "",
         whatsapp: myFullProfile.whatsapp || "",
         instagram: myFullProfile.instagram || "",
+        avatarCartoonUrl: myFullProfile.avatar_cartoon_url || "",
+        avatarFighterUrl: myFullProfile.avatar_fighter_url || "",
+        avatarHorseUrl: myFullProfile.avatar_horse_url || "",
+        favoriteDrink: myFullProfile.favorite_drink || "",
+        favoriteChocolate: myFullProfile.favorite_chocolate || "",
+        dreamPrize: myFullProfile.dream_prize || "",
+        nickname: myFullProfile.nickname || "",
       });
     }
   });
@@ -163,7 +186,7 @@ export default function Team() {
       const memberIds = membersData.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("first_name, last_name, user_id, email, whatsapp, instagram")
+        .select("first_name, last_name, user_id, email, whatsapp, instagram, avatar_cartoon_url, avatar_fighter_url, avatar_horse_url, favorite_drink, favorite_chocolate, dream_prize, nickname")
         .in("user_id", memberIds);
 
       if (profilesError) throw profilesError;
@@ -264,6 +287,13 @@ export default function Team() {
       lastName: myFullProfile?.last_name || "",
       whatsapp: myFullProfile?.whatsapp || "",
       instagram: myFullProfile?.instagram || "",
+      avatarCartoonUrl: myFullProfile?.avatar_cartoon_url || "",
+      avatarFighterUrl: myFullProfile?.avatar_fighter_url || "",
+      avatarHorseUrl: myFullProfile?.avatar_horse_url || "",
+      favoriteDrink: myFullProfile?.favorite_drink || "",
+      favoriteChocolate: myFullProfile?.favorite_chocolate || "",
+      dreamPrize: myFullProfile?.dream_prize || "",
+      nickname: myFullProfile?.nickname || "",
     });
     setIsEditingMyProfile(true);
   };
@@ -281,6 +311,13 @@ export default function Team() {
           last_name: myProfileData.lastName,
           whatsapp: myProfileData.whatsapp.replace(/\D/g, '') || null,
           instagram: myProfileData.instagram || null,
+          avatar_cartoon_url: myProfileData.avatarCartoonUrl || null,
+          avatar_fighter_url: myProfileData.avatarFighterUrl || null,
+          avatar_horse_url: myProfileData.avatarHorseUrl || null,
+          favorite_drink: myProfileData.favoriteDrink || null,
+          favorite_chocolate: myProfileData.favoriteChocolate || null,
+          dream_prize: myProfileData.dreamPrize || null,
+          nickname: myProfileData.nickname || null,
         })
         .eq("user_id", user.id);
 
@@ -318,6 +355,13 @@ export default function Team() {
       instagram: member.profile?.instagram || "",
       commissionPercentage: member.commission_percentage || 0,
       extension: member.extension || "",
+      avatarCartoonUrl: (member.profile as any)?.avatar_cartoon_url || "",
+      avatarFighterUrl: (member.profile as any)?.avatar_fighter_url || "",
+      avatarHorseUrl: (member.profile as any)?.avatar_horse_url || "",
+      favoriteDrink: (member.profile as any)?.favorite_drink || "",
+      favoriteChocolate: (member.profile as any)?.favorite_chocolate || "",
+      dreamPrize: (member.profile as any)?.dream_prize || "",
+      nickname: (member.profile as any)?.nickname || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -383,6 +427,13 @@ export default function Team() {
           last_name: editMemberData.lastName,
           whatsapp: editMemberData.whatsapp.replace(/\D/g, '') || null,
           instagram: editMemberData.instagram || null,
+          avatar_cartoon_url: editMemberData.avatarCartoonUrl || null,
+          avatar_fighter_url: editMemberData.avatarFighterUrl || null,
+          avatar_horse_url: editMemberData.avatarHorseUrl || null,
+          favorite_drink: editMemberData.favoriteDrink || null,
+          favorite_chocolate: editMemberData.favoriteChocolate || null,
+          dream_prize: editMemberData.dreamPrize || null,
+          nickname: editMemberData.nickname || null,
         })
         .eq("user_id", editingMember.user_id);
 
@@ -858,6 +909,82 @@ export default function Team() {
                     />
                   </div>
                 </div>
+
+                {/* Gamification Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-4 text-primary">🎮 Gamificação & Personalização</h4>
+                  
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="myNickname">Apelido</Label>
+                    <Input
+                      id="myNickname"
+                      placeholder="Como gosta de ser chamado?"
+                      value={myProfileData.nickname}
+                      onChange={(e) => setMyProfileData({ ...myProfileData, nickname: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="myAvatarCartoon">Foto Cartoon (URL)</Label>
+                      <Input
+                        id="myAvatarCartoon"
+                        placeholder="https://..."
+                        value={myProfileData.avatarCartoonUrl}
+                        onChange={(e) => setMyProfileData({ ...myProfileData, avatarCartoonUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="myAvatarFighter">Foto Lutador/Street Fighter (URL)</Label>
+                      <Input
+                        id="myAvatarFighter"
+                        placeholder="https://..."
+                        value={myProfileData.avatarFighterUrl}
+                        onChange={(e) => setMyProfileData({ ...myProfileData, avatarFighterUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="myAvatarHorse">Foto no Cavalo (URL)</Label>
+                      <Input
+                        id="myAvatarHorse"
+                        placeholder="https://..."
+                        value={myProfileData.avatarHorseUrl}
+                        onChange={(e) => setMyProfileData({ ...myProfileData, avatarHorseUrl: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="myFavoriteDrink">Bebida Favorita</Label>
+                      <Input
+                        id="myFavoriteDrink"
+                        placeholder="Ex: Café, Suco de laranja..."
+                        value={myProfileData.favoriteDrink}
+                        onChange={(e) => setMyProfileData({ ...myProfileData, favoriteDrink: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="myFavoriteChocolate">Chocolate Favorito</Label>
+                      <Input
+                        id="myFavoriteChocolate"
+                        placeholder="Ex: Bis, KitKat..."
+                        value={myProfileData.favoriteChocolate}
+                        onChange={(e) => setMyProfileData({ ...myProfileData, favoriteChocolate: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="myDreamPrize">Sonho/Prêmio Desejado</Label>
+                      <Input
+                        id="myDreamPrize"
+                        placeholder="Ex: Viagem, iPhone..."
+                        value={myProfileData.dreamPrize}
+                        onChange={(e) => setMyProfileData({ ...myProfileData, dreamPrize: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={() => setIsEditingMyProfile(false)}>
                     Cancelar
@@ -1145,6 +1272,81 @@ export default function Team() {
                     value={editMemberData.instagram}
                     onChange={(e) => setEditMemberData({ ...editMemberData, instagram: e.target.value })}
                   />
+                </div>
+
+                {/* Gamification Section */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-4 text-primary">🎮 Gamificação & Personalização</h4>
+                  
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="editNickname">Apelido</Label>
+                    <Input
+                      id="editNickname"
+                      placeholder="Como gosta de ser chamado?"
+                      value={editMemberData.nickname}
+                      onChange={(e) => setEditMemberData({ ...editMemberData, nickname: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="editAvatarCartoon">Foto Cartoon (URL)</Label>
+                      <Input
+                        id="editAvatarCartoon"
+                        placeholder="https://..."
+                        value={editMemberData.avatarCartoonUrl}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, avatarCartoonUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editAvatarFighter">Foto Lutador/Street Fighter (URL)</Label>
+                      <Input
+                        id="editAvatarFighter"
+                        placeholder="https://..."
+                        value={editMemberData.avatarFighterUrl}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, avatarFighterUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editAvatarHorse">Foto no Cavalo (URL)</Label>
+                      <Input
+                        id="editAvatarHorse"
+                        placeholder="https://..."
+                        value={editMemberData.avatarHorseUrl}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, avatarHorseUrl: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="editFavoriteDrink">Bebida Favorita</Label>
+                      <Input
+                        id="editFavoriteDrink"
+                        placeholder="Ex: Café, Suco de laranja..."
+                        value={editMemberData.favoriteDrink}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, favoriteDrink: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editFavoriteChocolate">Chocolate Favorito</Label>
+                      <Input
+                        id="editFavoriteChocolate"
+                        placeholder="Ex: Bis, KitKat..."
+                        value={editMemberData.favoriteChocolate}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, favoriteChocolate: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editDreamPrize">Sonho/Prêmio Desejado</Label>
+                      <Input
+                        id="editDreamPrize"
+                        placeholder="Ex: Viagem, iPhone..."
+                        value={editMemberData.dreamPrize}
+                        onChange={(e) => setEditMemberData({ ...editMemberData, dreamPrize: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Commission and Extension */}
