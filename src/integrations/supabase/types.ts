@@ -2140,6 +2140,172 @@ export type Database = {
           },
         ]
       }
+      sac_ticket_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          organization_id: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          organization_id: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          organization_id?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sac_ticket_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sac_ticket_comments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "sac_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sac_ticket_users: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sac_ticket_users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sac_ticket_users_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "sac_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sac_tickets: {
+        Row: {
+          category: Database["public"]["Enums"]["sac_category"]
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          lead_id: string
+          organization_id: string
+          priority: Database["public"]["Enums"]["sac_ticket_priority"]
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          sale_id: string | null
+          status: Database["public"]["Enums"]["sac_ticket_status"]
+          subcategory: string
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["sac_category"]
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          lead_id: string
+          organization_id: string
+          priority?: Database["public"]["Enums"]["sac_ticket_priority"]
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["sac_ticket_status"]
+          subcategory: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["sac_category"]
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          lead_id?: string
+          organization_id?: string
+          priority?: Database["public"]["Enums"]["sac_ticket_priority"]
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["sac_ticket_status"]
+          subcategory?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sac_tickets_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sac_tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sac_tickets_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_installments: {
         Row: {
           acquirer_id: string | null
@@ -2843,6 +3009,8 @@ export type Database = {
           products_view_cost: boolean
           receptive_module_access: boolean
           reports_view: boolean
+          sac_manage: boolean
+          sac_view: boolean
           sales_cancel: boolean
           sales_confirm_payment: boolean
           sales_create: boolean
@@ -2878,6 +3046,8 @@ export type Database = {
           products_view_cost?: boolean
           receptive_module_access?: boolean
           reports_view?: boolean
+          sac_manage?: boolean
+          sac_view?: boolean
           sales_cancel?: boolean
           sales_confirm_payment?: boolean
           sales_create?: boolean
@@ -2913,6 +3083,8 @@ export type Database = {
           products_view_cost?: boolean
           receptive_module_access?: boolean
           reports_view?: boolean
+          sac_manage?: boolean
+          sac_view?: boolean
           sales_cancel?: boolean
           sales_confirm_payment?: boolean
           sales_create?: boolean
@@ -4158,6 +4330,9 @@ export type Database = {
         | "boleto_postpaid"
         | "boleto_installment"
         | "gift"
+      sac_category: "complaint" | "question" | "request" | "financial"
+      sac_ticket_priority: "low" | "normal" | "high"
+      sac_ticket_status: "open" | "in_progress" | "resolved" | "closed"
       sale_status:
         | "draft"
         | "pending_expedition"
@@ -4360,6 +4535,9 @@ export const Constants = {
         "boleto_installment",
         "gift",
       ],
+      sac_category: ["complaint", "question", "request", "financial"],
+      sac_ticket_priority: ["low", "normal", "high"],
+      sac_ticket_status: ["open", "in_progress", "resolved", "closed"],
       sale_status: [
         "draft",
         "pending_expedition",

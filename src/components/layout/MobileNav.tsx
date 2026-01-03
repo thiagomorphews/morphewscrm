@@ -19,7 +19,8 @@ import {
   UsersRound,
   Instagram,
   Shield,
-  ClipboardList
+  ClipboardList,
+  TicketCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -61,6 +62,7 @@ export function MobileNav() {
   const canSeeTeam = isAdmin || permissions?.team_view;
   const canSeeInstagram = isAdmin || permissions?.instagram_view;
   const canSeePostSale = isAdmin || permissions?.post_sale_view;
+  const canSeeSac = isAdmin || permissions?.sac_view;
   
   // WhatsApp DMs is visible for master admin or if organization has it enabled
   const canSeeWhatsAppDMs = (isMasterAdmin || orgSettings?.whatsapp_dms_enabled) && canSeeWhatsApp;
@@ -85,6 +87,7 @@ export function MobileNav() {
     { icon: Shield, label: 'Código 2FA', path: '/2fa', visible: isManager },
     { icon: Package, label: 'Produtos', path: '/produtos', visible: canSeeProducts },
     { icon: ClipboardList, label: 'Pós-Venda', path: '/pos-venda', visible: canSeePostSale },
+    { icon: TicketCheck, label: 'SAC', path: '/sac', visible: canSeeSac },
     { icon: DollarSign, label: 'Financeiro', path: '/financeiro', visible: canSeeFinanceiro },
     { icon: FileText, label: 'Relatórios', path: '/relatorios/vendas', visible: canSeeReports },
     { icon: Truck, label: 'Minhas Entregas', path: '/minhas-entregas', visible: canSeeDeliveries },

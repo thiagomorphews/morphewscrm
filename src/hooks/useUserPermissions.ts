@@ -55,6 +55,10 @@ export interface UserPermissions {
   post_sale_view: boolean;
   post_sale_manage: boolean;
   
+  // SAC
+  sac_view: boolean;
+  sac_manage: boolean;
+  
   created_at: string;
   updated_at: string;
 }
@@ -100,9 +104,13 @@ export const PERMISSION_LABELS: Record<keyof Omit<UserPermissions, 'id' | 'organ
   // Pós-Venda
   post_sale_view: { label: 'Ver Pós-Venda', description: 'Visualizar módulo de pós-venda', group: 'Pós-Venda' },
   post_sale_manage: { label: 'Gerenciar Pós-Venda', description: 'Realizar pesquisas pós-venda', group: 'Pós-Venda' },
+  
+  // SAC
+  sac_view: { label: 'Ver SAC', description: 'Acessar módulo de SAC e chamados', group: 'SAC' },
+  sac_manage: { label: 'Gerenciar SAC', description: 'Criar e gerenciar chamados SAC', group: 'SAC' },
 };
 
-export const PERMISSION_GROUPS = ['Leads', 'Vendas', 'Financeiro', 'WhatsApp', 'Produtos', 'Configurações', 'Entregas', 'Módulos', 'Equipe', 'Pós-Venda'];
+export const PERMISSION_GROUPS = ['Leads', 'Vendas', 'Financeiro', 'WhatsApp', 'Produtos', 'Configurações', 'Entregas', 'Módulos', 'Equipe', 'Pós-Venda', 'SAC'];
 
 // Hook to get current user's permissions
 export function useMyPermissions() {
@@ -281,6 +289,8 @@ export function useApplyRoleDefaults() {
           instagram_view: permsObj.instagram_view ?? false,
           post_sale_view: permsObj.post_sale_view ?? false,
           post_sale_manage: permsObj.post_sale_manage ?? false,
+          sac_view: permsObj.sac_view ?? false,
+          sac_manage: permsObj.sac_manage ?? false,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'organization_id,user_id',
