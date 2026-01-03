@@ -576,11 +576,22 @@ export function useUpdatePaymentMethodEnhanced() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: UpdatePaymentMethodInput & { id: string }) => {
-      const { transaction_fees, ...methodData } = input;
+      const { transaction_fees, ...rawMethodData } = input;
+      
+      // Clean up empty strings that should be null (for UUID fields)
+      const methodData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(rawMethodData)) {
+        // Convert empty strings to null for UUID reference fields
+        if (value === '' && ['bank_destination_id', 'cnpj_destination_id', 'cost_center_id', 'acquirer_id'].includes(key)) {
+          methodData[key] = null;
+        } else if (value !== undefined) {
+          methodData[key] = value;
+        }
+      }
       
       // Update requires_transaction_data based on category if category is being updated
       if (methodData.category) {
-        (methodData as any).requires_transaction_data = CATEGORIES_REQUIRING_TRANSACTION_DATA.includes(methodData.category);
+        methodData.requires_transaction_data = CATEGORIES_REQUIRING_TRANSACTION_DATA.includes(methodData.category);
       }
       
       const { data, error } = await supabase
