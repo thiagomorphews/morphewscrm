@@ -34,7 +34,7 @@ import RomaneioPrint from "./pages/RomaneioPrint";
 import MyDeliveries from "./pages/MyDeliveries";
 import AllDeliveries from "./pages/AllDeliveries";
 import SalesReport from "./pages/SalesReport";
-import FinancialReport from "./pages/FinancialReport";
+import Financial from "./pages/Financial";
 import SignupSuccess from "./pages/SignupSuccess";
 import AddReceptivo from "./pages/AddReceptivo";
 import WhatsAppV2 from "./pages/WhatsAppV2";
@@ -294,7 +294,7 @@ const App = () => (
                 path="/financeiro"
                 element={
                   <ProtectedRoute requiredPermissions={['reports_view', 'sales_confirm_payment']}>
-                    <FinancialReport />
+                    <Financial />
                   </ProtectedRoute>
                 }
               />
