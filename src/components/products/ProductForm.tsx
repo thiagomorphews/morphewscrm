@@ -24,12 +24,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Package, DollarSign, Link2, HelpCircle } from 'lucide-react';
+import { Loader2, Package, DollarSign, Link2, HelpCircle, ImageIcon, FlaskConical } from 'lucide-react';
 import type { Product, ProductFormData } from '@/hooks/useProducts';
 import { PRODUCT_CATEGORIES, useProducts } from '@/hooks/useProducts';
 import { PriceKitsManager } from './PriceKitsManager';
 import { DynamicQuestionsManager, type DynamicQuestion } from './DynamicQuestionsManager';
 import type { ProductPriceKitFormData } from '@/hooks/useProductPriceKits';
+import { ProductImageUpload } from './ProductImageUpload';
+import { ProductFaqManager, type ProductFaq } from './ProductFaqManager';
+import { ProductIngredientsManager, type ProductIngredient } from './ProductIngredientsManager';
 
 // Categorias que usam o sistema de kits dinâmicos
 const CATEGORIES_WITH_KITS = ['produto_pronto', 'print_on_demand', 'dropshipping'];
@@ -57,21 +60,35 @@ const formSchema = z.object({
 
 interface ProductFormProps {
   product?: Product | null;
-  onSubmit: (data: ProductFormData, priceKits?: ProductPriceKitFormData[], questions?: DynamicQuestion[]) => void;
+  onSubmit: (data: ProductFormData, priceKits?: ProductPriceKitFormData[], questions?: DynamicQuestion[], faqs?: ProductFaq[], ingredients?: ProductIngredient[]) => void;
   isLoading?: boolean;
   onCancel: () => void;
   initialPriceKits?: ProductPriceKitFormData[];
   initialQuestions?: DynamicQuestion[];
+  initialFaqs?: ProductFaq[];
+  initialIngredients?: ProductIngredient[];
 }
 
-export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPriceKits = [], initialQuestions = [] }: ProductFormProps) {
+export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPriceKits = [], initialQuestions = [], initialFaqs = [], initialIngredients = [] }: ProductFormProps) {
   const [priceKits, setPriceKits] = useState<ProductPriceKitFormData[]>(initialPriceKits);
   const [questions, setQuestions] = useState<DynamicQuestion[]>(initialQuestions);
+  const [faqs, setFaqs] = useState<ProductFaq[]>(initialFaqs);
+  const [ingredients, setIngredients] = useState<ProductIngredient[]>(initialIngredients);
+  const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url || null);
+  const [labelImageUrl, setLabelImageUrl] = useState<string | null>(product?.label_image_url || null);
   
-  // Sync priceKits and questions when initial values change
+  // Sync state when initial values change
   useEffect(() => {
     setPriceKits(initialPriceKits);
   }, [initialPriceKits]);
+
+  useEffect(() => {
+    setFaqs(initialFaqs);
+  }, [initialFaqs]);
+
+  useEffect(() => {
+    setIngredients(initialIngredients);
+  }, [initialIngredients]);
 
   useEffect(() => {
     setQuestions(initialQuestions);
@@ -112,7 +129,17 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPri
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     // Filter out empty questions
     const validQuestions = questions.filter(q => q.question_text.trim() !== '');
-    onSubmit(values as ProductFormData, usesKits ? priceKits : undefined, validQuestions);
+    const validFaqs = faqs.filter(f => f.question.trim() !== '' && f.answer.trim() !== '');
+    const validIngredients = ingredients.filter(i => i.name.trim() !== '');
+    
+    // Include image URLs in the form data
+    const dataWithImages = {
+      ...values,
+      image_url: imageUrl,
+      label_image_url: labelImageUrl,
+    } as ProductFormData;
+    
+    onSubmit(dataWithImages, usesKits ? priceKits : undefined, validQuestions, validFaqs, validIngredients);
   };
 
   return (
@@ -157,7 +184,37 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPri
           </CardContent>
         </Card>
 
-        {/* Informações Básicas */}
+        {/* Imagens do Produto */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" />
+              Imagens do Produto
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-6">
+              <ProductImageUpload
+                label="Foto do Produto"
+                currentUrl={imageUrl}
+                onUploadComplete={setImageUrl}
+                productId={product?.id}
+                imageType="product"
+              />
+              <ProductImageUpload
+                label="Foto do Rótulo"
+                currentUrl={labelImageUrl}
+                onUploadComplete={setLabelImageUrl}
+                productId={product?.id}
+                imageType="label"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground mt-4">
+              A foto do produto será exibida durante a venda. A foto do rótulo pode ser visualizada pelo vendedor em caso de dúvidas.
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Informações Básicas</CardTitle>
@@ -303,7 +360,38 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPri
           </Card>
         )}
 
-        {/* Custo e Financeiro */}
+        {/* Ingredientes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              Ingredientes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProductIngredientsManager
+              ingredients={ingredients}
+              onChange={setIngredients}
+            />
+          </CardContent>
+        </Card>
+
+        {/* FAQ */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              FAQ (Perguntas Frequentes)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProductFaqManager
+              faqs={faqs}
+              onChange={setFaqs}
+            />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

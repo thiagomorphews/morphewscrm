@@ -876,11 +876,13 @@ export type Database = {
           crosssell_product_2_id: string | null
           description: string | null
           id: string
+          image_url: string | null
           is_active: boolean
           is_featured: boolean
           key_question_1: string | null
           key_question_2: string | null
           key_question_3: string | null
+          label_image_url: string | null
           minimum_price: number | null
           minimum_stock: number | null
           name: string
@@ -904,11 +906,13 @@ export type Database = {
           crosssell_product_2_id?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           is_featured?: boolean
           key_question_1?: string | null
           key_question_2?: string | null
           key_question_3?: string | null
+          label_image_url?: string | null
           minimum_price?: number | null
           minimum_stock?: number | null
           name: string
@@ -932,11 +936,13 @@ export type Database = {
           crosssell_product_2_id?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           is_featured?: boolean
           key_question_1?: string | null
           key_question_2?: string | null
           key_question_3?: string | null
+          label_image_url?: string | null
           minimum_price?: number | null
           minimum_stock?: number | null
           name?: string
@@ -1982,6 +1988,102 @@ export type Database = {
             columns: ["sale_id"]
             isOneToOne: true
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_faqs: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          organization_id: string
+          position: number
+          product_id: string
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          position?: number
+          product_id: string
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          position?: number
+          product_id?: string
+          question?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_faqs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_faqs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "lead_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_ingredients: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          position: number
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          position?: number
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          position?: number
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "lead_products"
             referencedColumns: ["id"]
           },
         ]

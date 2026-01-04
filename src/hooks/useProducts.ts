@@ -45,6 +45,9 @@ export interface Product {
   // Cross-sell fields
   crosssell_product_1_id: string | null;
   crosssell_product_2_id: string | null;
+  // Image fields
+  image_url: string | null;
+  label_image_url: string | null;
 }
 
 // Computed property for available stock
@@ -76,6 +79,9 @@ export interface ProductFormData {
   // Cross-sell fields
   crosssell_product_1_id?: string | null;
   crosssell_product_2_id?: string | null;
+  // Image fields
+  image_url?: string | null;
+  label_image_url?: string | null;
 }
 
 export function useProducts() {
