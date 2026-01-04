@@ -2742,6 +2742,9 @@ export type Database = {
           payment_notes: string | null
           payment_proof_url: string | null
           payment_status: string | null
+          post_sale_contact_status:
+            | Database["public"]["Enums"]["post_sale_contact_status"]
+            | null
           return_latitude: number | null
           return_longitude: number | null
           return_notes: string | null
@@ -2798,6 +2801,9 @@ export type Database = {
           payment_notes?: string | null
           payment_proof_url?: string | null
           payment_status?: string | null
+          post_sale_contact_status?:
+            | Database["public"]["Enums"]["post_sale_contact_status"]
+            | null
           return_latitude?: number | null
           return_longitude?: number | null
           return_notes?: string | null
@@ -2854,6 +2860,9 @@ export type Database = {
           payment_notes?: string | null
           payment_proof_url?: string | null
           payment_status?: string | null
+          post_sale_contact_status?:
+            | Database["public"]["Enums"]["post_sale_contact_status"]
+            | null
           return_latitude?: number | null
           return_longitude?: number | null
           return_notes?: string | null
@@ -4582,6 +4591,17 @@ export type Database = {
         | "boleto_postpaid"
         | "boleto_installment"
         | "gift"
+      post_sale_contact_status:
+        | "pending"
+        | "attempted_1"
+        | "attempted_2"
+        | "attempted_3"
+        | "sent_whatsapp"
+        | "callback_later"
+        | "completed_call"
+        | "completed_whatsapp"
+        | "refused"
+        | "not_needed"
       sac_category: "complaint" | "question" | "request" | "financial"
       sac_ticket_priority: "low" | "normal" | "high"
       sac_ticket_status: "open" | "in_progress" | "resolved" | "closed"
@@ -4786,6 +4806,18 @@ export const Constants = {
         "boleto_postpaid",
         "boleto_installment",
         "gift",
+      ],
+      post_sale_contact_status: [
+        "pending",
+        "attempted_1",
+        "attempted_2",
+        "attempted_3",
+        "sent_whatsapp",
+        "callback_later",
+        "completed_call",
+        "completed_whatsapp",
+        "refused",
+        "not_needed",
       ],
       sac_category: ["complaint", "question", "request", "financial"],
       sac_ticket_priority: ["low", "normal", "high"],
