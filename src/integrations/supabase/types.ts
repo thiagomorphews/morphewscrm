@@ -711,6 +711,66 @@ export type Database = {
           },
         ]
       }
+      lead_followups: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          organization_id: string
+          reason: string | null
+          scheduled_at: string
+          source_id: string | null
+          source_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          organization_id: string
+          reason?: string | null
+          scheduled_at: string
+          source_id?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          organization_id?: string
+          reason?: string | null
+          scheduled_at?: string
+          source_id?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_followups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_followups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_kit_rejections: {
         Row: {
           created_at: string
@@ -2367,6 +2427,7 @@ export type Database = {
           phone_searched: string
           product_answers: Json | null
           product_id: string | null
+          purchase_potential_cents: number | null
           sale_id: string | null
           updated_at: string
           user_id: string
@@ -2383,6 +2444,7 @@ export type Database = {
           phone_searched: string
           product_answers?: Json | null
           product_id?: string | null
+          purchase_potential_cents?: number | null
           sale_id?: string | null
           updated_at?: string
           user_id: string
@@ -2399,6 +2461,7 @@ export type Database = {
           phone_searched?: string
           product_answers?: Json | null
           product_id?: string | null
+          purchase_potential_cents?: number | null
           sale_id?: string | null
           updated_at?: string
           user_id?: string

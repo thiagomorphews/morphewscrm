@@ -215,6 +215,7 @@ export default function AddReceptivo() {
   const [selectedInstallments, setSelectedInstallments] = useState<number>(1);
   const [paymentStatus, setPaymentStatus] = useState<'not_paid' | 'will_pay_before' | 'paid_now'>('not_paid');
   const [sellerUserId, setSellerUserId] = useState<string | null>(null);
+  const [purchasePotential, setPurchasePotential] = useState<number>(0);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const selectedPaymentMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId);
@@ -545,6 +546,7 @@ export default function AddReceptivo() {
           product_answers: null,
           sale_id: null,
           non_purchase_reason_id: null,
+          purchase_potential_cents: null,
           completed: false,
         });
         setAttendanceId(result.id);
@@ -795,6 +797,11 @@ export default function AddReceptivo() {
   };
 
   const handleSelectReason = async (reasonId: string) => {
+    if (purchasePotential <= 0) {
+      toast({ title: 'Informe o potencial de compra', variant: 'destructive' });
+      return;
+    }
+    
     setSelectedReasonId(reasonId);
     setIsSaving(true);
 
@@ -814,9 +821,40 @@ export default function AddReceptivo() {
             recorded_by: user.id,
           });
         }
+
+        // Update lead's negotiated_value with purchase potential
+        const { data: lead } = await supabase
+          .from('leads')
+          .select('negotiated_value')
+          .eq('id', leadId)
+          .single();
+        
+        const currentNegotiated = lead?.negotiated_value || 0;
+        const newNegotiated = currentNegotiated + (purchasePotential / 100);
+        
+        await supabase
+          .from('leads')
+          .update({ negotiated_value: newNegotiated })
+          .eq('id', leadId);
+
+        // Create follow-up if reason has followup_hours
+        if (reason && reason.followup_hours > 0 && tenantId && user) {
+          const followupDate = new Date();
+          followupDate.setHours(followupDate.getHours() + reason.followup_hours);
+          
+          await supabase.from('lead_followups').insert({
+            organization_id: tenantId,
+            lead_id: leadId,
+            user_id: user.id,
+            scheduled_at: followupDate.toISOString(),
+            reason: `Follow-up: ${reason.name}`,
+            source_type: 'receptive',
+            source_id: attendanceId,
+          });
+        }
       }
 
-      // Update attendance
+      // Update attendance with purchase potential
       if (attendanceId) {
         await updateAttendance.mutateAsync({
           id: attendanceId,
@@ -825,6 +863,7 @@ export default function AddReceptivo() {
             product_id: selectedProductId || null,
             product_answers: Object.keys(productAnswers).length > 0 ? productAnswers : null,
             non_purchase_reason_id: reasonId,
+            purchase_potential_cents: purchasePotential,
             completed: true,
           },
         });
@@ -2015,39 +2054,69 @@ export default function AddReceptivo() {
                   <ThumbsDown className="w-5 h-5" />
                   Não Fechou a Venda
                 </CardTitle>
-                <CardDescription>Selecione o motivo para acompanhamento futuro</CardDescription>
+                <CardDescription>Informe o potencial de compra e selecione o motivo</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {nonPurchaseReasons.map((reason) => (
-                  <Button
-                    key={reason.id}
-                    variant="outline"
-                    className={`w-full justify-start h-auto p-4 ${
-                      selectedReasonId === reason.id ? 'border-amber-500 bg-amber-500/10' : ''
-                    }`}
-                    onClick={() => handleSelectReason(reason.id)}
-                    disabled={isSaving}
-                  >
-                    <div className="flex-1 text-left">
-                      <p className="font-medium">{reason.name}</p>
-                      {reason.followup_hours > 0 && (
-                        <Badge variant="secondary" className="text-xs mt-1">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          Follow-up: {reason.followup_hours}h
-                        </Badge>
-                      )}
-                    </div>
-                    {isSaving && selectedReasonId === reason.id && (
-                      <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                    )}
-                  </Button>
-                ))}
-
-                {nonPurchaseReasons.length === 0 && (
-                  <p className="text-center text-muted-foreground py-4">
-                    Nenhum motivo cadastrado. Configure em Configurações.
+              <CardContent className="space-y-4">
+                {/* Purchase Potential Input */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-amber-500" />
+                    Potencial de Compra *
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0,00"
+                      className="pl-10"
+                      value={purchasePotential > 0 ? (purchasePotential / 100).toFixed(2) : ''}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        setPurchasePotential(Math.round(value * 100));
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Este valor será adicionado ao "Valor Negociado" do lead
                   </p>
-                )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  {nonPurchaseReasons.map((reason) => (
+                    <Button
+                      key={reason.id}
+                      variant="outline"
+                      className={`w-full justify-start h-auto p-4 ${
+                        selectedReasonId === reason.id ? 'border-amber-500 bg-amber-500/10' : ''
+                      }`}
+                      onClick={() => handleSelectReason(reason.id)}
+                      disabled={isSaving || purchasePotential <= 0}
+                    >
+                      <div className="flex-1 text-left">
+                        <p className="font-medium">{reason.name}</p>
+                        {reason.followup_hours > 0 && (
+                          <Badge variant="secondary" className="text-xs mt-1">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            Follow-up: {reason.followup_hours}h
+                          </Badge>
+                        )}
+                      </div>
+                      {isSaving && selectedReasonId === reason.id && (
+                        <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                      )}
+                    </Button>
+                  ))}
+
+                  {nonPurchaseReasons.length === 0 && (
+                    <p className="text-center text-muted-foreground py-4">
+                      Nenhum motivo cadastrado. Configure em Configurações.
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

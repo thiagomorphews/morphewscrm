@@ -34,6 +34,8 @@ import { LeadSalesSection } from '@/components/leads/LeadSalesSection';
 import { LeadPostSaleHistory } from '@/components/leads/LeadPostSaleHistory';
 import { LeadSacSection } from '@/components/leads/LeadSacSection';
 import { LeadAddressesManager } from '@/components/leads/LeadAddressesManager';
+import { LeadFollowupsSection } from '@/components/leads/LeadFollowupsSection';
+import { LeadReceptiveHistorySection } from '@/components/leads/LeadReceptiveHistorySection';
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads';
 import { useAddStageHistory } from '@/hooks/useLeadStageHistory';
 import { useUsers } from '@/hooks/useUsers';
@@ -195,7 +197,7 @@ export default function LeadDetail() {
                 displayClassName="text-3xl font-bold text-foreground"
               />
               <StarRating 
-                rating={lead.stars as 1 | 2 | 3 | 4 | 5} 
+                rating={lead.stars as 0 | 1 | 2 | 3 | 4 | 5} 
                 size="lg" 
                 interactive
                 onChange={(stars) => handleUpdate('stars', stars)}
@@ -563,6 +565,12 @@ export default function LeadDetail() {
 
             {/* SAC - Chamados */}
             <LeadSacSection leadId={id!} />
+
+            {/* Follow-ups */}
+            <LeadFollowupsSection leadId={id!} />
+
+            {/* Histórico Receptivo */}
+            <LeadReceptiveHistorySection leadId={id!} />
 
             {/* Stage History Timeline */}
             <LeadStageTimeline leadId={id!} currentStage={lead.stage} />

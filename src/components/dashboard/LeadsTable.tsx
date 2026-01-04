@@ -115,7 +115,7 @@ export function LeadsTable({ leads, title, headerRight }: LeadsTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-center">
-                      <StarRating rating={lead.stars as 1 | 2 | 3 | 4 | 5} size="sm" />
+                      <StarRating rating={lead.stars as 0 | 1 | 2 | 3 | 4 | 5} size="sm" />
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{lead.assigned_to}</TableCell>

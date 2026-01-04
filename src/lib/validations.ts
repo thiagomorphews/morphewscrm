@@ -43,7 +43,7 @@ export const leadSchema = z.object({
   secondary_phone: z.string().max(20, { message: 'Número muito longo' }).optional().or(z.literal('')),
   email: z.string().email({ message: 'E-mail inválido' }).optional().or(z.literal('')),
   stage: z.string(),
-  stars: z.number().min(1).max(5),
+  stars: z.number().min(0).max(5),
   assigned_to: z.string().trim().min(1, { message: 'Responsável é obrigatório' }).max(100, { message: 'Nome muito longo' }),
   whatsapp_group: z.string().max(200).optional().or(z.literal('')),
   desired_products: z.string().max(1000).optional().or(z.literal('')),
