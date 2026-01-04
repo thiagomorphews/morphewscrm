@@ -1371,30 +1371,39 @@ export type Database = {
           can_see_all_leads: boolean
           commission_percentage: number | null
           created_at: string
+          earns_team_commission: boolean
           extension: string | null
           id: string
+          is_sales_manager: boolean
           organization_id: string
           role: Database["public"]["Enums"]["org_role"]
+          team_commission_percentage: number | null
           user_id: string
         }
         Insert: {
           can_see_all_leads?: boolean
           commission_percentage?: number | null
           created_at?: string
+          earns_team_commission?: boolean
           extension?: string | null
           id?: string
+          is_sales_manager?: boolean
           organization_id: string
           role?: Database["public"]["Enums"]["org_role"]
+          team_commission_percentage?: number | null
           user_id: string
         }
         Update: {
           can_see_all_leads?: boolean
           commission_percentage?: number | null
           created_at?: string
+          earns_team_commission?: boolean
           extension?: string | null
           id?: string
+          is_sales_manager?: boolean
           organization_id?: string
           role?: Database["public"]["Enums"]["org_role"]
+          team_commission_percentage?: number | null
           user_id?: string
         }
         Relationships: [
@@ -2810,6 +2819,38 @@ export type Database = {
             columns: ["shipping_carrier_id"]
             isOneToOne: false
             referencedRelation: "shipping_carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_manager_team_members: {
+        Row: {
+          created_at: string
+          id: string
+          manager_user_id: string
+          organization_id: string
+          team_member_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          manager_user_id: string
+          organization_id: string
+          team_member_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          manager_user_id?: string
+          organization_id?: string
+          team_member_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_manager_team_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
