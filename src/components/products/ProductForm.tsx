@@ -522,30 +522,6 @@ export function ProductForm({ product, onSubmit, isLoading, onCancel, initialPri
           </CardContent>
         </Card>
 
-        {/* Configurações ERP */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Configurações ERP</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="usage_period_days"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Período de Uso (dias)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" placeholder="0" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Usado para avisar quando tratamento está terminando
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
 
         {/* Botões */}
         <div className="flex gap-4 justify-end">
