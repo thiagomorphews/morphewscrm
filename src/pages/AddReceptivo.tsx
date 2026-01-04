@@ -628,6 +628,8 @@ export default function AddReceptivo() {
         unit_price_cents: unitPrice,
         discount_cents: totalDiscount,
         requisition_number: selectedProduct?.category === 'manipulado' ? requisitionNumber : null,
+        commission_percentage: commission,
+        commission_cents: commissionValue,
       };
 
       const sale = await createSale.mutateAsync({

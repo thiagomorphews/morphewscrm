@@ -27,25 +27,59 @@ const formatPrice = (cents: number) => {
   }).format(cents / 100);
 };
 
-const CommissionBadge = ({ comparison, value }: { comparison: CommissionComparison; value: number }) => {
+const CommissionBadge = ({ 
+  comparison, 
+  commissionValue,
+  effectivePercentage 
+}: { 
+  comparison: CommissionComparison; 
+  commissionValue: number;
+  effectivePercentage: number;
+}) => {
+  const formatPercentage = (pct: number) => `${pct.toFixed(1).replace('.', ',')}%`;
+  
   if (comparison === 'higher') {
     return (
-      <Badge className="bg-green-500 hover:bg-green-600 text-white gap-1">
-        🤩 <TrendingUp className="w-3 h-3" /> {formatPrice(value)}
-      </Badge>
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-[10px] font-medium text-green-600 uppercase tracking-wide">
+          Você vai ganhar
+        </span>
+        <Badge className="bg-green-500 hover:bg-green-600 text-white gap-1">
+          🤩 {formatPrice(commissionValue)}
+        </Badge>
+        <span className="text-[10px] text-green-600">
+          {formatPercentage(effectivePercentage)} comissão
+        </span>
+      </div>
     );
   }
   if (comparison === 'lower') {
     return (
-      <Badge className="bg-red-500 hover:bg-red-600 text-white gap-1">
-        ☹️ <TrendingDown className="w-3 h-3" /> {formatPrice(value)}
-      </Badge>
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-[10px] font-medium text-red-600 uppercase tracking-wide">
+          Você vai ganhar
+        </span>
+        <Badge className="bg-red-500 hover:bg-red-600 text-white gap-1">
+          ☹️ {formatPrice(commissionValue)}
+        </Badge>
+        <span className="text-[10px] text-red-600">
+          {formatPercentage(effectivePercentage)} comissão
+        </span>
+      </div>
     );
   }
   return (
-    <Badge variant="secondary" className="gap-1">
-      <Coins className="w-3 h-3" /> {formatPrice(value)}
-    </Badge>
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+        Você vai ganhar
+      </span>
+      <Badge variant="secondary" className="gap-1">
+        <Coins className="w-3 h-3" /> {formatPrice(commissionValue)}
+      </Badge>
+      <span className="text-[10px] text-muted-foreground">
+        {formatPercentage(effectivePercentage)} comissão padrão
+      </span>
+    </div>
   );
 };
 
@@ -145,7 +179,11 @@ export function ProgressiveKitSelector({
         </div>
         <div className="text-right">
           <p className="text-lg font-bold text-primary">{formatPrice(priceCents)}</p>
-          <CommissionBadge comparison={commissionComparison} value={commissionValueForPrice} />
+          <CommissionBadge 
+            comparison={commissionComparison} 
+            commissionValue={commissionValueForPrice}
+            effectivePercentage={effectiveCommission}
+          />
         </div>
       </label>
     );

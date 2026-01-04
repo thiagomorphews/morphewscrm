@@ -68,6 +68,8 @@ interface SelectedItem {
   unit_price_cents: number;
   discount_cents: number;
   requisition_number?: string | null;
+  commission_percentage?: number;
+  commission_cents?: number;
 }
 
 interface SelectedLead {
