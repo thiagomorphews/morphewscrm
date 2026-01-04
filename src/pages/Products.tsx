@@ -34,9 +34,13 @@ import {
   useProductQuestions, 
   useSaveProductQuestions,
 } from '@/hooks/useProductQuestions';
+import { useProductFaqs, useSaveProductFaqs } from '@/hooks/useProductFaqs';
+import { useProductIngredients, useSaveProductIngredients } from '@/hooks/useProductIngredients';
 import { normalizeText } from '@/lib/utils';
 import { useMyPermissions } from '@/hooks/useUserPermissions';
 import type { DynamicQuestion } from '@/components/products/DynamicQuestionsManager';
+import type { ProductFaq } from '@/components/products/ProductFaqManager';
+import type { ProductIngredient } from '@/components/products/ProductIngredientsManager';
 
 type ViewMode = 'list' | 'create' | 'edit';
 
@@ -51,6 +55,8 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
   const [initialKits, setInitialKits] = useState<ProductPriceKitFormData[]>([]);
   const [initialQuestions, setInitialQuestions] = useState<DynamicQuestion[]>([]);
+  const [initialFaqs, setInitialFaqs] = useState<ProductFaq[]>([]);
+  const [initialIngredients, setInitialIngredients] = useState<ProductIngredient[]>([]);
 
   const { data: products, isLoading } = useProducts();
   const { data: isOwner } = useIsOwner();
@@ -60,13 +66,17 @@ export default function Products() {
   const deleteProduct = useDeleteProduct();
   const bulkSaveKits = useBulkSaveProductPriceKits();
   const saveQuestions = useSaveProductQuestions();
+  const saveFaqs = useSaveProductFaqs();
+  const saveIngredients = useSaveProductIngredients();
   
   // User can manage products if they are owner OR have products_manage permission
   const canManageProducts = isOwner || myPermissions?.products_manage || false;
 
-  // Load kits when editing a product
+  // Load kits and other data when editing a product
   const { data: productKits } = useProductPriceKits(selectedProduct?.id);
   const { data: productQuestions } = useProductQuestions(selectedProduct?.id);
+  const { data: productFaqs } = useProductFaqs(selectedProduct?.id);
+  const { data: productIngredients } = useProductIngredients(selectedProduct?.id);
 
   useEffect(() => {
     if (productKits) {
@@ -103,12 +113,38 @@ export default function Products() {
     }
   }, [productQuestions]);
 
+  useEffect(() => {
+    if (productFaqs) {
+      setInitialFaqs(productFaqs.map(f => ({
+        id: f.id,
+        question: f.question,
+        answer: f.answer,
+        position: f.position,
+      })));
+    } else {
+      setInitialFaqs([]);
+    }
+  }, [productFaqs]);
+
+  useEffect(() => {
+    if (productIngredients) {
+      setInitialIngredients(productIngredients.map(i => ({
+        id: i.id,
+        name: i.name,
+        description: i.description,
+        position: i.position,
+      })));
+    } else {
+      setInitialIngredients([]);
+    }
+  }, [productIngredients]);
+
   const filteredProducts = products?.filter((p) =>
     normalizeText(p.name).includes(normalizeText(searchTerm)) ||
     normalizeText(p.description || '').includes(normalizeText(searchTerm))
   );
 
-  const handleCreate = async (data: ProductFormData, priceKits?: ProductPriceKitFormData[], questions?: DynamicQuestion[]) => {
+  const handleCreate = async (data: ProductFormData, priceKits?: ProductPriceKitFormData[], questions?: DynamicQuestion[], faqs?: ProductFaq[], ingredients?: ProductIngredient[]) => {
     const product = await createProduct.mutateAsync(data);
     
     // Save kits if provided
@@ -126,11 +162,35 @@ export default function Products() {
         }))
       });
     }
+
+    // Save FAQs if provided
+    if (faqs && faqs.length > 0 && product?.id) {
+      await saveFaqs.mutateAsync({ 
+        productId: product.id, 
+        faqs: faqs.map((f, i) => ({ 
+          question: f.question, 
+          answer: f.answer,
+          position: i 
+        }))
+      });
+    }
+
+    // Save ingredients if provided
+    if (ingredients && ingredients.length > 0 && product?.id) {
+      await saveIngredients.mutateAsync({ 
+        productId: product.id, 
+        ingredients: ingredients.map((ing, i) => ({ 
+          name: ing.name, 
+          description: ing.description,
+          position: i 
+        }))
+      });
+    }
     
     setViewMode('list');
   };
 
-  const handleUpdate = async (data: ProductFormData, priceKits?: ProductPriceKitFormData[], questions?: DynamicQuestion[]) => {
+  const handleUpdate = async (data: ProductFormData, priceKits?: ProductPriceKitFormData[], questions?: DynamicQuestion[], faqs?: ProductFaq[], ingredients?: ProductIngredient[]) => {
     if (!selectedProduct) return;
     await updateProduct.mutateAsync({ id: selectedProduct.id, data });
     
@@ -151,11 +211,33 @@ export default function Products() {
         position: i,
       }))
     });
+
+    // Always save FAQs
+    await saveFaqs.mutateAsync({
+      productId: selectedProduct.id,
+      faqs: (faqs || []).map((f, i) => ({
+        question: f.question,
+        answer: f.answer,
+        position: i,
+      }))
+    });
+
+    // Always save ingredients
+    await saveIngredients.mutateAsync({
+      productId: selectedProduct.id,
+      ingredients: (ingredients || []).map((ing, i) => ({
+        name: ing.name,
+        description: ing.description,
+        position: i,
+      }))
+    });
     
     setViewMode('list');
     setSelectedProduct(null);
     setInitialKits([]);
     setInitialQuestions([]);
+    setInitialFaqs([]);
+    setInitialIngredients([]);
   };
 
   const handleDelete = async () => {
@@ -174,6 +256,8 @@ export default function Products() {
     setSelectedProduct(null);
     setInitialKits([]);
     setInitialQuestions([]);
+    setInitialFaqs([]);
+    setInitialIngredients([]);
   };
 
   if (viewMode === 'create') {
@@ -183,7 +267,7 @@ export default function Products() {
           <h1 className="text-2xl font-bold mb-6">Novo Produto</h1>
           <ProductForm
             onSubmit={handleCreate}
-            isLoading={createProduct.isPending || bulkSaveKits.isPending || saveQuestions.isPending}
+            isLoading={createProduct.isPending || bulkSaveKits.isPending || saveQuestions.isPending || saveFaqs.isPending || saveIngredients.isPending}
             onCancel={handleCancel}
           />
         </div>
@@ -199,10 +283,12 @@ export default function Products() {
           <ProductForm
             product={selectedProduct}
             onSubmit={handleUpdate}
-            isLoading={updateProduct.isPending || bulkSaveKits.isPending || saveQuestions.isPending}
+            isLoading={updateProduct.isPending || bulkSaveKits.isPending || saveQuestions.isPending || saveFaqs.isPending || saveIngredients.isPending}
             onCancel={handleCancel}
             initialPriceKits={initialKits}
             initialQuestions={initialQuestions}
+            initialFaqs={initialFaqs}
+            initialIngredients={initialIngredients}
           />
         </div>
       </Layout>

@@ -44,7 +44,8 @@ import {
   Upload,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProducts, Product } from '@/hooks/useProducts';
@@ -52,6 +53,7 @@ import { useCreateSale, formatCurrency, DeliveryType } from '@/hooks/useSales';
 import { LeadSearchSelect } from '@/components/sales/LeadSearchSelect';
 import { ProductSelectionDialog } from '@/components/sales/ProductSelectionDialog';
 import { ProductSelectorForSale } from '@/components/products/ProductSelectorForSale';
+import { ProductLabelViewer } from '@/components/products/ProductLabelViewer';
 import { DeliveryTypeSelector } from '@/components/sales/DeliveryTypeSelector';
 import { AddressSelector } from '@/components/sales/AddressSelector';
 import { LeadAddress } from '@/hooks/useLeadAddresses';
@@ -484,15 +486,37 @@ export default function NewSale() {
                       <TableBody>
                         {selectedItems.map((item) => {
                           const itemTotal = (item.unit_price_cents * item.quantity) - item.discount_cents;
+                          const product = products.find(p => p.id === item.product_id);
                           return (
                             <TableRow key={item.product_id}>
-                              <TableCell className="font-medium">
-                                {item.product_name}
-                                {item.requisition_number && (
-                                  <span className="block text-xs text-amber-600">
-                                    Req: {item.requisition_number}
-                                  </span>
-                                )}
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  {product?.image_url ? (
+                                    <img 
+                                      src={product.image_url} 
+                                      alt={item.product_name}
+                                      className="w-10 h-10 rounded object-cover flex-shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                      <Package className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="font-medium">{item.product_name}</span>
+                                    {item.requisition_number && (
+                                      <span className="block text-xs text-amber-600">
+                                        Req: {item.requisition_number}
+                                      </span>
+                                    )}
+                                    {product?.label_image_url && (
+                                      <ProductLabelViewer 
+                                        labelImageUrl={product.label_image_url}
+                                        productName={item.product_name}
+                                      />
+                                    )}
+                                  </div>
+                                </div>
                               </TableCell>
                               <TableCell className="text-center">{item.quantity}</TableCell>
                               <TableCell className="text-right">{formatCurrency(item.unit_price_cents)}</TableCell>
