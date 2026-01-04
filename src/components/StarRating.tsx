@@ -2,8 +2,8 @@ import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StarRatingProps {
-  rating: 1 | 2 | 3 | 4 | 5;
-  onChange?: (rating: 1 | 2 | 3 | 4 | 5) => void;
+  rating: 0 | 1 | 2 | 3 | 4 | 5;
+  onChange?: (rating: 0 | 1 | 2 | 3 | 4 | 5) => void;
   size?: 'sm' | 'md' | 'lg';
   interactive?: boolean;
 }
@@ -17,9 +17,24 @@ export function StarRating({ rating, onChange, size = 'md', interactive = false 
 
   const handleClick = (star: number) => {
     if (interactive && onChange) {
-      onChange(star as 1 | 2 | 3 | 4 | 5);
+      // Se clicar na mesma estrela que está selecionada, zera
+      if (star === rating) {
+        onChange(0);
+      } else {
+        onChange(star as 0 | 1 | 2 | 3 | 4 | 5);
+      }
     }
   };
+
+  // Se rating é 0, mostra indicador de "não classificado"
+  if (rating === 0 && !interactive) {
+    return (
+      <div className="flex items-center gap-1 text-muted-foreground">
+        <Star className={cn(sizes[size], 'fill-transparent text-muted-foreground/40')} />
+        <span className="text-xs">Não classificado</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-0.5">

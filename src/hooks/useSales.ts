@@ -580,6 +580,25 @@ export function useCreateSale() {
         }
       }
 
+      // Update lead's negotiated_value with the sale total
+      if (data.lead_id) {
+        // Get current lead's negotiated_value
+        const { data: lead } = await supabase
+          .from('leads')
+          .select('negotiated_value')
+          .eq('id', data.lead_id)
+          .single();
+        
+        // Add this sale's value to the negotiated_value
+        const currentNegotiated = lead?.negotiated_value || 0;
+        const newNegotiated = currentNegotiated + (total_cents / 100);
+        
+        await supabase
+          .from('leads')
+          .update({ negotiated_value: newNegotiated })
+          .eq('id', data.lead_id);
+      }
+
       return sale;
     },
     onSuccess: () => {
@@ -614,6 +633,29 @@ export function useUpdateSale() {
       } else if (data.status === 'payment_confirmed') {
         updateData.payment_confirmed_at = new Date().toISOString();
         updateData.payment_confirmed_by = user?.id;
+        
+        // Get sale details to update lead's paid_value
+        const { data: saleData } = await supabase
+          .from('sales')
+          .select('lead_id, total_cents')
+          .eq('id', id)
+          .single();
+        
+        if (saleData?.lead_id) {
+          const { data: lead } = await supabase
+            .from('leads')
+            .select('paid_value')
+            .eq('id', saleData.lead_id)
+            .single();
+          
+          const currentPaid = lead?.paid_value || 0;
+          const newPaid = currentPaid + (saleData.total_cents / 100);
+          
+          await supabase
+            .from('leads')
+            .update({ paid_value: newPaid })
+            .eq('id', saleData.lead_id);
+        }
       } else if (data.status === 'returned') {
         updateData.returned_at = new Date().toISOString();
         updateData.returned_by = user?.id;

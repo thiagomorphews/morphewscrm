@@ -40,7 +40,7 @@ export function MobileLeadCard({ lead }: MobileLeadCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
-            <StarRating rating={lead.stars as 1 | 2 | 3 | 4 | 5} size="sm" />
+            <StarRating rating={lead.stars as 0 | 1 | 2 | 3 | 4 | 5} size="sm" />
           </div>
           
           {lead.specialty && (

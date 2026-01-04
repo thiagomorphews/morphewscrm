@@ -15,6 +15,7 @@ export interface ReceptiveAttendance {
   product_answers: Record<string, string> | null;
   sale_id: string | null;
   non_purchase_reason_id: string | null;
+  purchase_potential_cents: number | null;
   completed: boolean;
   created_at: string;
   updated_at: string;

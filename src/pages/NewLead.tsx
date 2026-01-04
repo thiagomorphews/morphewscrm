@@ -75,7 +75,7 @@ export default function NewLead() {
     secondary_phone: '',
     email: '',
     stage: 'prospect' as FunnelStage,
-    stars: 3,
+    stars: 0,
     assigned_to: defaultAssignedTo,
     whatsapp_group: '',
     desired_products: '',
