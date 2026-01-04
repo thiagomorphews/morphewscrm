@@ -39,7 +39,7 @@ import SignupSuccess from "./pages/SignupSuccess";
 import AddReceptivo from "./pages/AddReceptivo";
 import WhatsAppV2 from "./pages/WhatsAppV2";
 import TwoFactorAuth from "./pages/TwoFactorAuth";
-import PostSale from "./pages/PostSale";
+import PostSaleKanban from "./pages/PostSaleKanban";
 import SalesDashboard from "./pages/SalesDashboard";
 import SAC from "./pages/SAC";
 import NotFound from "./pages/NotFound";
@@ -164,7 +164,7 @@ const App = () => (
                 path="/pos-venda"
                 element={
                   <ProtectedRoute requiredPermissions={['post_sale_view']}>
-                    <PostSale />
+                    <PostSaleKanban />
                   </ProtectedRoute>
                 }
               />
