@@ -61,6 +61,9 @@ interface OrgMember {
   can_see_all_leads: boolean;
   commission_percentage: number | null;
   extension: string | null;
+  is_sales_manager: boolean;
+  earns_team_commission: boolean;
+  team_commission_percentage: number | null;
   created_at: string;
   profile?: {
     first_name: string;
@@ -108,7 +111,12 @@ export default function Team() {
     dailyGoalCents: 0,
     weeklyGoalCents: 0,
     monthlyGoalCents: 0,
+    // Sales manager
+    isSalesManager: false,
+    earnsTeamCommission: false,
+    teamCommissionPercentage: 0,
   });
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState<string | null>(null);
   const [newUserData, setNewUserData] = useState({
@@ -185,10 +193,10 @@ export default function Team() {
     queryFn: async () => {
       if (!profile?.organization_id) return [];
 
-      // Get members including can_see_all_leads, commission and extension
+      // Get members including can_see_all_leads, commission, extension and sales manager fields
       const { data: membersData, error: membersError } = await supabase
         .from("organization_members")
-        .select("id, user_id, role, can_see_all_leads, commission_percentage, extension, created_at, organization_id")
+        .select("id, user_id, role, can_see_all_leads, commission_percentage, extension, is_sales_manager, earns_team_commission, team_commission_percentage, created_at, organization_id")
         .eq("organization_id", profile.organization_id);
 
       if (membersError) throw membersError;
@@ -361,7 +369,7 @@ export default function Team() {
     }
   };
 
-  const handleEditMember = (member: OrgMember) => {
+  const handleEditMember = async (member: OrgMember) => {
     setEditingMember(member);
     setEditRole(member.role);
     setEditCanSeeAllLeads(member.can_see_all_leads ?? true);
@@ -382,7 +390,23 @@ export default function Team() {
       dailyGoalCents: (member.profile as any)?.daily_goal_cents || 0,
       weeklyGoalCents: (member.profile as any)?.weekly_goal_cents || 0,
       monthlyGoalCents: (member.profile as any)?.monthly_goal_cents || 0,
+      isSalesManager: member.is_sales_manager ?? false,
+      earnsTeamCommission: member.earns_team_commission ?? false,
+      teamCommissionPercentage: member.team_commission_percentage || 0,
     });
+    
+    // Fetch team members if is sales manager
+    if (member.is_sales_manager) {
+      const { data: teamData } = await supabase
+        .from("sales_manager_team_members")
+        .select("team_member_user_id")
+        .eq("manager_user_id", member.user_id);
+      
+      setSelectedTeamMembers(teamData?.map(t => t.team_member_user_id) || []);
+    } else {
+      setSelectedTeamMembers([]);
+    }
+    
     setIsEditDialogOpen(true);
   };
 
@@ -418,7 +442,7 @@ export default function Team() {
   };
 
   const handleUpdateRole = async () => {
-    if (!editingMember) return;
+    if (!editingMember || !profile?.organization_id) return;
     
     setIsUpdatingRole(true);
     
@@ -434,6 +458,9 @@ export default function Team() {
           can_see_all_leads: finalCanSeeAllLeads,
           commission_percentage: editMemberData.commissionPercentage || 0,
           extension: editMemberData.extension || null,
+          is_sales_manager: editMemberData.isSalesManager,
+          earns_team_commission: editMemberData.earnsTeamCommission,
+          team_commission_percentage: editMemberData.teamCommissionPercentage || 0,
         })
         .eq("id", editingMember.id);
 
@@ -462,6 +489,36 @@ export default function Team() {
 
       if (profileError) throw profileError;
 
+      // Handle sales manager team members
+      if (editMemberData.isSalesManager && editMemberData.earnsTeamCommission) {
+        // Delete existing team members
+        await supabase
+          .from("sales_manager_team_members")
+          .delete()
+          .eq("manager_user_id", editingMember.user_id);
+        
+        // Insert new team members
+        if (selectedTeamMembers.length > 0) {
+          const teamInserts = selectedTeamMembers.map(teamMemberId => ({
+            organization_id: profile.organization_id,
+            manager_user_id: editingMember.user_id,
+            team_member_user_id: teamMemberId,
+          }));
+          
+          const { error: teamError } = await supabase
+            .from("sales_manager_team_members")
+            .insert(teamInserts);
+          
+          if (teamError) throw teamError;
+        }
+      } else {
+        // If not a sales manager anymore, remove all team associations
+        await supabase
+          .from("sales_manager_team_members")
+          .delete()
+          .eq("manager_user_id", editingMember.user_id);
+      }
+
       toast({
         title: "Membro atualizado",
         description: "As alterações foram salvas.",
@@ -469,6 +526,7 @@ export default function Team() {
       
       setIsEditDialogOpen(false);
       setEditingMember(null);
+      setSelectedTeamMembers([]);
       refetchMembers();
     } catch (error: any) {
       console.error("Error updating member:", error);
@@ -1223,6 +1281,16 @@ export default function Team() {
                   </div>
                   <div className="flex items-center gap-3">
                     {getRoleBadge(member.role)}
+                    {/* Sales Manager badge */}
+                    {member.is_sales_manager && (
+                      <Badge 
+                        variant="outline" 
+                        className="bg-purple-500/10 text-purple-600 border-purple-500/30"
+                      >
+                        <Crown className="w-3 h-3 mr-1" />
+                        Gerente
+                      </Badge>
+                    )}
                     {/* Visibility badge */}
                     {member.role !== "owner" && (
                       <Badge 
@@ -1511,6 +1579,114 @@ export default function Team() {
                       Para integrações futuras (telefonia, etc.)
                     </p>
                   </div>
+                </div>
+
+                {/* Sales Manager Section */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-4 text-primary">👑 Gerente de Time de Vendas</h4>
+                  
+                  <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30 mb-4">
+                    <div className="space-y-0.5">
+                      <div className="font-medium">Usuário é Gerente de Time de Vendas?</div>
+                      <p className="text-xs text-muted-foreground">
+                        Gerentes podem ganhar comissão sobre vendas do seu time
+                      </p>
+                    </div>
+                    <Switch
+                      checked={editMemberData.isSalesManager}
+                      onCheckedChange={(checked) => setEditMemberData({ 
+                        ...editMemberData, 
+                        isSalesManager: checked,
+                        earnsTeamCommission: checked ? editMemberData.earnsTeamCommission : false,
+                        teamCommissionPercentage: checked ? editMemberData.teamCommissionPercentage : 0,
+                      })}
+                    />
+                  </div>
+                  
+                  {editMemberData.isSalesManager && (
+                    <div className="space-y-4 ml-4 pl-4 border-l-2 border-primary/30">
+                      <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                        <div className="space-y-0.5">
+                          <div className="font-medium">Ganha comissão em cima do seu time?</div>
+                          <p className="text-xs text-muted-foreground">
+                            Recebe uma porcentagem sobre as vendas dos vendedores do seu time
+                          </p>
+                        </div>
+                        <Switch
+                          checked={editMemberData.earnsTeamCommission}
+                          onCheckedChange={(checked) => setEditMemberData({ 
+                            ...editMemberData, 
+                            earnsTeamCommission: checked 
+                          })}
+                        />
+                      </div>
+                      
+                      {editMemberData.earnsTeamCommission && (
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="teamCommission">Comissão sobre o time (%)</Label>
+                            <Input
+                              id="teamCommission"
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={editMemberData.teamCommissionPercentage || ""}
+                              onChange={(e) => setEditMemberData({ 
+                                ...editMemberData, 
+                                teamCommissionPercentage: parseFloat(e.target.value) || 0 
+                              })}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Percentual de comissão sobre vendas entregues do time
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Quais vendedores fazem parte do time?</Label>
+                            <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                              {members
+                                .filter(m => m.user_id !== editingMember?.user_id) // Exclude self
+                                .map(m => (
+                                  <div key={m.user_id} className="flex items-center gap-3">
+                                    <input
+                                      type="checkbox"
+                                      id={`team-${m.user_id}`}
+                                      checked={selectedTeamMembers.includes(m.user_id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedTeamMembers([...selectedTeamMembers, m.user_id]);
+                                        } else {
+                                          setSelectedTeamMembers(selectedTeamMembers.filter(id => id !== m.user_id));
+                                        }
+                                      }}
+                                      className="w-4 h-4 rounded border-input"
+                                    />
+                                    <label htmlFor={`team-${m.user_id}`} className="flex-1 cursor-pointer">
+                                      <span className="font-medium">
+                                        {m.profile?.first_name} {m.profile?.last_name}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground ml-2">
+                                        ({ORG_ROLE_LABELS[m.role]?.label || m.role})
+                                      </span>
+                                    </label>
+                                  </div>
+                                ))}
+                              {members.filter(m => m.user_id !== editingMember?.user_id).length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-2">
+                                  Nenhum outro membro disponível
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Selecione os vendedores que fazem parte do time deste gerente
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Role */}
