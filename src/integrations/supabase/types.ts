@@ -2493,6 +2493,8 @@ export type Database = {
       }
       sale_items: {
         Row: {
+          commission_cents: number | null
+          commission_percentage: number | null
           created_at: string
           discount_cents: number
           id: string
@@ -2506,6 +2508,8 @@ export type Database = {
           unit_price_cents: number
         }
         Insert: {
+          commission_cents?: number | null
+          commission_percentage?: number | null
           created_at?: string
           discount_cents?: number
           id?: string
@@ -2519,6 +2523,8 @@ export type Database = {
           unit_price_cents: number
         }
         Update: {
+          commission_cents?: number | null
+          commission_percentage?: number | null
           created_at?: string
           discount_cents?: number
           id?: string
@@ -2632,6 +2638,8 @@ export type Database = {
           scheduled_delivery_shift:
             | Database["public"]["Enums"]["delivery_shift"]
             | null
+          seller_commission_cents: number | null
+          seller_commission_percentage: number | null
           seller_user_id: string | null
           shipping_address_id: string | null
           shipping_carrier_id: string | null
@@ -2686,6 +2694,8 @@ export type Database = {
           scheduled_delivery_shift?:
             | Database["public"]["Enums"]["delivery_shift"]
             | null
+          seller_commission_cents?: number | null
+          seller_commission_percentage?: number | null
           seller_user_id?: string | null
           shipping_address_id?: string | null
           shipping_carrier_id?: string | null
@@ -2740,6 +2750,8 @@ export type Database = {
           scheduled_delivery_shift?:
             | Database["public"]["Enums"]["delivery_shift"]
             | null
+          seller_commission_cents?: number | null
+          seller_commission_percentage?: number | null
           seller_user_id?: string | null
           shipping_address_id?: string | null
           shipping_carrier_id?: string | null

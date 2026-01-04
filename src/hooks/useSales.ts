@@ -143,6 +143,9 @@ export interface CreateSaleData {
     unit_price_cents: number;
     discount_cents?: number;
     requisition_number?: string | null;
+    // Commission fields
+    commission_percentage?: number;
+    commission_cents?: number;
   }[];
   discount_type?: 'percentage' | 'fixed' | null;
   discount_value?: number;
@@ -160,6 +163,9 @@ export interface CreateSaleData {
   // Payment status at creation
   payment_status?: 'not_paid' | 'will_pay_before' | 'paid_now';
   payment_proof_url?: string | null;
+  // Commission fields (total)
+  seller_commission_percentage?: number;
+  seller_commission_cents?: number;
 }
 
 export interface UpdateSaleData {
@@ -414,6 +420,16 @@ export function useCreateSale() {
         assignedDeliveryUserId = region?.assigned_user_id ?? null;
       }
 
+      // Calculate total commission from items
+      const totalCommissionCents = data.items.reduce((sum, item) => {
+        return sum + (item.commission_cents || 0);
+      }, 0);
+      
+      // Use provided commission or calculate from items
+      const sellerCommissionCents = data.seller_commission_cents ?? totalCommissionCents;
+      const sellerCommissionPercentage = data.seller_commission_percentage ?? 
+        (total_cents > 0 ? (sellerCommissionCents / total_cents) * 100 : 0);
+
       // Create sale
       const { data: sale, error: saleError } = await supabase
         .from('sales')
@@ -440,6 +456,8 @@ export function useCreateSale() {
           payment_installments: data.payment_installments || 1,
           payment_status: data.payment_status || 'not_paid',
           payment_proof_url: data.payment_proof_url || null,
+          seller_commission_percentage: sellerCommissionPercentage,
+          seller_commission_cents: sellerCommissionCents,
         })
         .select()
         .single();
@@ -456,6 +474,8 @@ export function useCreateSale() {
         discount_cents: item.discount_cents || 0,
         total_cents: (item.unit_price_cents * item.quantity) - (item.discount_cents || 0),
         requisition_number: item.requisition_number || null,
+        commission_percentage: item.commission_percentage || 0,
+        commission_cents: item.commission_cents || 0,
       }));
 
       const { error: itemsError } = await supabase

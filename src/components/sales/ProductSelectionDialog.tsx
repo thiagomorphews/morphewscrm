@@ -31,6 +31,8 @@ interface ProductSelectionDialogProps {
     unit_price_cents: number;
     discount_cents: number;
     requisition_number?: string | null;
+    commission_percentage?: number;
+    commission_cents?: number;
   }) => void;
 }
 
@@ -368,6 +370,8 @@ export function ProductSelectionDialog({
       unit_price_cents: unitPrice,
       discount_cents: discountCents,
       requisition_number: isManipulado ? requisitionNumber : null,
+      commission_percentage: commission,
+      commission_cents: commissionValue,
     });
     onOpenChange(false);
     // Reset state
